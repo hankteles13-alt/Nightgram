@@ -1,0 +1,69 @@
+{
+  "collections": {
+    "users": {
+      "description": "User profiles keyed by their Firebase Auth UID",
+      "fields": {
+        "username": "string (unique display username)",
+        "displayName": "string (full name)",
+        "avatar": "string (URL to image)",
+        "bio": "string (user bio)",
+        "followersCount": "number",
+        "followingCount": "number",
+        "starsCount": "number",
+        "createdAt": "timestamp"
+      }
+    },
+    "posts": {
+      "description": "Late-night posts shared by users",
+      "fields": {
+        "userId": "string",
+        "username": "string",
+        "userAvatar": "string",
+        "image": "string",
+        "caption": "string",
+        "location": "string",
+        "mood": "string",
+        "tags": "array of strings",
+        "likesCount": "number",
+        "likedBy": "array of strings (user UIDs)",
+        "savedBy": "array of strings (user UIDs)",
+        "comments": "array of map objects { id, username, userAvatar, text, time, createdAt }",
+        "createdAt": "timestamp"
+      }
+    },
+    "stories": {
+      "description": "Nocturnal active stories",
+      "fields": {
+        "userId": "string",
+        "username": "string",
+        "userAvatar": "string",
+        "mediaUrl": "string",
+        "caption": "string",
+        "mood": "string",
+        "createdAt": "timestamp"
+      }
+    },
+    "chats": {
+      "description": "Direct chat rooms between users",
+      "fields": {
+        "id": "string",
+        "participants": "array of strings (user UIDs)",
+        "participantProfiles": "map of user UIDs to { username, displayName, avatar }",
+        "lastMessage": "string",
+        "lastMessageTime": "string",
+        "updatedAt": "timestamp"
+      }
+    },
+    "messages": {
+      "description": "Subcollection under chats/{chatId}/messages",
+      "fields": {
+        "chatId": "string",
+        "senderId": "string",
+        "senderName": "string",
+        "senderAvatar": "string",
+        "text": "string",
+        "createdAt": "timestamp"
+      }
+    }
+  }
+}
