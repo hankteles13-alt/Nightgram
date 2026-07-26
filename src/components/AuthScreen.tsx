@@ -134,23 +134,25 @@ export default function AuthScreen({ onAuthSuccess }: AuthScreenProps) {
       const userCredential = await signInWithPopup(auth, provider);
       await handleUserDocCheck(userCredential.user);
     } catch (err: any) {
-      console.error('Google Sign In Error:', err);
       const code = err?.code || '';
       const message = err?.message || '';
 
       if (code === 'auth/popup-blocked' || message.includes('popup-blocked')) {
+        console.warn('Google Sign-In popup was blocked by browser frame constraints:', message);
         setPopupBlocked(true);
-        setError('Google Sign-In popup was blocked by browser security in this preview frame. Please log in using Email & Password below, or open the app in a new tab.');
+        setError('Google Sign-In popup was blocked by browser security in this preview frame. Please log in using Email & Password below, or open the app in a new tab to sign in with Google.');
         if (window.self === window.top) {
           try {
             await signInWithRedirect(auth, provider);
           } catch (redirectErr: any) {
-            console.error('Redirect auth error:', redirectErr);
+            console.warn('Redirect auth notice:', redirectErr);
           }
         }
       } else if (code === 'auth/cancelled-popup-request' || code === 'auth/popup-closed-by-user') {
+        console.warn('Google Sign-In popup closed by user or cancelled.');
         setError('Sign-in popup was closed before completing.');
       } else {
+        console.error('Google Sign In Error:', err);
         setError(message || 'An error occurred during Google sign-in.');
       }
     } finally {
