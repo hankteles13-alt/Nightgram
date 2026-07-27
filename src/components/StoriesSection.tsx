@@ -6,9 +6,10 @@ import { X, ChevronLeft, ChevronRight, Moon } from 'lucide-react';
 interface StoriesSectionProps {
   stories: Story[];
   currentUser?: UserProfile | null;
+  onOpenCreateStory?: () => void;
 }
 
-export default function StoriesSection({ stories, currentUser }: StoriesSectionProps) {
+export default function StoriesSection({ stories, currentUser, onOpenCreateStory }: StoriesSectionProps) {
   const [activeStoryIdx, setActiveStoryIdx] = useState<number | null>(null);
   const [progress, setProgress] = useState(0);
 
@@ -59,7 +60,11 @@ export default function StoriesSection({ stories, currentUser }: StoriesSectionP
       {/* Stories horizontal bar */}
       <div className="flex space-x-4 overflow-x-auto pb-2 scrollbar-none" id="stories-scroll-wrapper">
         {/* Current user's add story option */}
-        <div className="flex flex-col items-center space-y-1.5 flex-shrink-0 cursor-pointer group" id="user-story-bubble">
+        <div
+          className="flex flex-col items-center space-y-1.5 flex-shrink-0 cursor-pointer group"
+          id="user-story-bubble"
+          onClick={onOpenCreateStory}
+        >
           <div className="relative">
             <div className="w-16 h-16 rounded-full p-[2px] bg-gradient-to-tr from-cyan-500 to-purple-500 transition-all duration-300 group-hover:scale-105 shadow-[0_0_10px_rgba(6,182,212,0.3)]">
               <img

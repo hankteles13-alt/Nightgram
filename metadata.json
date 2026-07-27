@@ -1,6 +1,6 @@
 {
   "name": "Nightgram",
   "description": "A nocturnal social network for sharing late-night vibes, city neon, dark photography, and quiet thoughts under the stars.",
-  "requestFramePermissions": [],
+  "requestFramePermissions": ["microphone"],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

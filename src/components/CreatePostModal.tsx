@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { motion } from 'motion/react';
 import { Post, UserProfile } from '../types';
 import { PRESET_SCENES, MOODS } from '../data';
@@ -16,6 +16,9 @@ import {
   AlertCircle,
   CheckCircle2,
   Image as ImageIcon,
+  Mic,
+  MicOff,
+  Volume2,
 } from 'lucide-react';
 
 interface CreatePostModalProps {
@@ -40,7 +43,90 @@ export default function CreatePostModal({ currentUser, onClose, onSubmit }: Crea
   const [tags, setTags] = useState<string[]>(['nightgram', 'deviceUpload', 'nocturnal']);
   const [isSparking, setIsSparking] = useState(false);
 
+  // Speech Recognition dictation state
+  const [isListening, setIsListening] = useState<boolean>(false);
+  const [speechError, setSpeechError] = useState<string | null>(null);
+  const recognitionRef = useRef<any>(null);
+  const baseCaptionRef = useRef<string>('');
+
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Stop speech recognition if component unmounts
+  useEffect(() => {
+    return () => {
+      if (recognitionRef.current) {
+        try {
+          recognitionRef.current.stop();
+        } catch {
+          // ignore cleanup errors
+        }
+      }
+    };
+  }, []);
+
+  const toggleDictation = () => {
+    if (typeof window === 'undefined') return;
+
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+
+    if (!SpeechRecognition) {
+      setSpeechError('Speech recognition is not supported in this browser.');
+      return;
+    }
+
+    if (isListening) {
+      if (recognitionRef.current) {
+        try {
+          recognitionRef.current.stop();
+        } catch {
+          // ignore
+        }
+      }
+      setIsListening(false);
+      return;
+    }
+
+    try {
+      setSpeechError(null);
+      baseCaptionRef.current = caption ? (caption.endsWith(' ') ? caption : caption + ' ') : '';
+      const recognition = new SpeechRecognition();
+      recognition.continuous = true;
+      recognition.interimResults = true;
+      recognition.lang = 'en-US';
+
+      recognition.onresult = (event: any) => {
+        let currentTranscript = '';
+        for (let i = event.resultIndex; i < event.results.length; i++) {
+          currentTranscript += event.results[i][0].transcript;
+        }
+        setCaption(baseCaptionRef.current + currentTranscript);
+      };
+
+      recognition.onerror = (event: any) => {
+        console.warn('Speech recognition notice:', event.error);
+        if (event.error === 'not-allowed') {
+          setSpeechError('Microphone access was denied. Please allow microphone permission.');
+        } else if (event.error === 'no-speech') {
+          // silence timeout, reset listening
+        } else {
+          setSpeechError(`Dictation notice: ${event.error}`);
+        }
+        setIsListening(false);
+      };
+
+      recognition.onend = () => {
+        setIsListening(false);
+      };
+
+      recognition.start();
+      recognitionRef.current = recognition;
+      setIsListening(true);
+    } catch (err: any) {
+      console.error('Failed to start speech recognition:', err);
+      setSpeechError('Could not launch speech dictation.');
+      setIsListening(false);
+    }
+  };
 
   // File processing logic for Device Storage upload
   const processFile = (file: File) => {
@@ -531,25 +617,66 @@ export default function CreatePostModal({ currentUser, onClose, onSubmit }: Crea
                   <label className="text-[11px] font-semibold text-zinc-400 uppercase tracking-wider">
                     Late Night Caption
                   </label>
-                  <button
-                    type="button"
-                    id="spark-caption-btn"
-                    onClick={handleSparkCaption}
-                    disabled={isSparking}
-                    className="flex items-center space-x-1 px-2.5 py-0.5 rounded-full bg-cyan-950/20 border border-cyan-800/50 hover:bg-cyan-900/30 text-cyan-400 text-[10px] font-semibold transition cursor-pointer animate-pulse"
-                  >
-                    <Sparkles className="w-3 h-3 text-cyan-400" />
-                    <span>{isSparking ? 'Sparking...' : 'Spark Caption'}</span>
-                  </button>
+                  <div className="flex items-center space-x-1.5" id="caption-tools-group">
+                    <button
+                      type="button"
+                      id="dictate-caption-btn"
+                      onClick={toggleDictation}
+                      title={isListening ? 'Stop Voice Dictation' : 'Dictate Caption with Voice'}
+                      className={`flex items-center space-x-1 px-2.5 py-0.5 rounded-full border text-[10px] font-semibold transition cursor-pointer ${
+                        isListening
+                          ? 'bg-red-950/60 border-red-500/60 text-red-300 animate-pulse shadow-[0_0_10px_rgba(239,68,68,0.3)]'
+                          : 'bg-purple-950/20 border-purple-800/50 hover:bg-purple-900/30 text-purple-300'
+                      }`}
+                    >
+                      {isListening ? (
+                        <>
+                          <MicOff className="w-3 h-3 text-red-400" />
+                          <span>Listening...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Mic className="w-3 h-3 text-purple-400" />
+                          <span>Dictate</span>
+                        </>
+                      )}
+                    </button>
+                    <button
+                      type="button"
+                      id="spark-caption-btn"
+                      onClick={handleSparkCaption}
+                      disabled={isSparking}
+                      className="flex items-center space-x-1 px-2.5 py-0.5 rounded-full bg-cyan-950/20 border border-cyan-800/50 hover:bg-cyan-900/30 text-cyan-400 text-[10px] font-semibold transition cursor-pointer"
+                    >
+                      <Sparkles className="w-3 h-3 text-cyan-400" />
+                      <span>{isSparking ? 'Sparking...' : 'Spark Caption'}</span>
+                    </button>
+                  </div>
                 </div>
-                <textarea
-                  id="caption-textarea"
-                  rows={4}
-                  value={caption}
-                  onChange={(e) => setCaption(e.target.value)}
-                  placeholder="Tell your midnight story, capture a feeling, or let our Spark helper craft something beautiful..."
-                  className="w-full bg-[#121218] border border-zinc-800/80 rounded-xl px-3 py-2 text-xs text-zinc-300 placeholder-zinc-600 focus:outline-none focus:border-cyan-500/50 leading-relaxed resize-none"
-                />
+                <div className="relative">
+                  <textarea
+                    id="caption-textarea"
+                    rows={4}
+                    value={caption}
+                    onChange={(e) => setCaption(e.target.value)}
+                    placeholder="Tell your midnight story, dictate with voice, or let our Spark helper craft something beautiful..."
+                    className={`w-full bg-[#121218] border rounded-xl px-3 py-2 text-xs text-zinc-300 placeholder-zinc-600 focus:outline-none leading-relaxed resize-none transition-colors ${
+                      isListening ? 'border-red-500/60 shadow-[0_0_12px_rgba(239,68,68,0.2)]' : 'border-zinc-800/80 focus:border-cyan-500/50'
+                    }`}
+                  />
+                  {isListening && (
+                    <div className="absolute bottom-2.5 right-3 flex items-center space-x-1.5 bg-red-950/90 border border-red-800/80 px-2 py-0.5 rounded-md text-[10px] text-red-300 pointer-events-none animate-pulse">
+                      <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-ping" />
+                      <span>Recording voice...</span>
+                    </div>
+                  )}
+                </div>
+                {speechError && (
+                  <div className="flex items-center space-x-1.5 text-[10px] text-red-400 mt-1 px-1" id="speech-error-message">
+                    <AlertCircle className="w-3 h-3 shrink-0" />
+                    <span>{speechError}</span>
+                  </div>
+                )}
               </div>
 
               {/* Hashtag Multi Input */}

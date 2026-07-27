@@ -25,6 +25,7 @@ import {
 import StoriesSection from './components/StoriesSection';
 import FeedSection from './components/FeedSection';
 import CreatePostModal from './components/CreatePostModal';
+import CreateStoryModal from './components/CreateStoryModal';
 import MessagesSection from './components/MessagesSection';
 import ProfileSection from './components/ProfileSection';
 import AuthScreen from './components/AuthScreen';
@@ -75,6 +76,7 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<'feed' | 'messages' | 'profile'>('feed');
   const [selectedMood, setSelectedMood] = useState('All Vibes');
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showCreateStoryModal, setShowCreateStoryModal] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
   const [notifFilterTab, setNotifFilterTab] = useState<'all' | 'unread' | 'mentions'>('all');
   const [isLofiPlaying, setIsLofiPlaying] = useState(false);
@@ -380,6 +382,25 @@ export default function App() {
       setActiveTab('feed');
     } catch (err) {
       console.error('Error creating post: ', err);
+    }
+  };
+
+  const handleCreateStorySubmit = async (newStory: { mediaUrl: string; caption: string; mood: string }) => {
+    if (!currentUser) return;
+    try {
+      await addDoc(collection(db, 'stories'), {
+        username: currentUser.username,
+        userAvatar: currentUser.avatar,
+        userId: currentUser.uid,
+        mediaUrl: newStory.mediaUrl,
+        caption: newStory.caption,
+        mood: newStory.mood || 'Urban Neon',
+        createdAt: new Date().toISOString(),
+      });
+      setShowCreateStoryModal(false);
+      setActiveTab('feed');
+    } catch (err) {
+      console.error('Error creating story: ', err);
     }
   };
 
@@ -844,7 +865,11 @@ export default function App() {
               {activeTab === 'feed' && (
                 <div className="space-y-6" id="feed-tab-pane">
                   {/* Neon Stories list */}
-                  <StoriesSection stories={stories} currentUser={currentUser} />
+                  <StoriesSection
+                    stories={stories}
+                    currentUser={currentUser}
+                    onOpenCreateStory={() => setShowCreateStoryModal(true)}
+                  />
 
                   {/* Filterable feed list */}
                   <FeedSection
@@ -936,13 +961,20 @@ export default function App() {
         </button>
       </footer>
 
-      {/* Create post modal dialog */}
+      {/* Create post & story modal dialogs */}
       <AnimatePresence>
         {showCreateModal && (
           <CreatePostModal
             currentUser={currentUser}
             onClose={() => setShowCreateModal(false)}
             onSubmit={handleCreatePostSubmit}
+          />
+        )}
+        {showCreateStoryModal && (
+          <CreateStoryModal
+            currentUser={currentUser}
+            onClose={() => setShowCreateStoryModal(false)}
+            onSubmit={handleCreateStorySubmit}
           />
         )}
       </AnimatePresence>

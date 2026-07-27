@@ -111,9 +111,10 @@ export default function FeedSection({
             <motion.article
               key={post.id}
               id={`post-card-${post.id}`}
-              initial={{ opacity: 0, y: 15 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.4 }}
+              initial={{ opacity: 0, scale: 0.95, y: 25 }}
+              whileInView={{ opacity: 1, scale: 1, y: 0 }}
+              viewport={{ once: true, margin: '-40px' }}
+              transition={{ duration: 0.5, ease: [0.21, 0.47, 0.32, 0.98] }}
               className="bg-[#0a0a0f] border border-zinc-800/80 rounded-2xl overflow-hidden shadow-[0_4px_30px_rgba(0,0,0,0.4)] flex flex-col"
             >
               {/* Header */}
