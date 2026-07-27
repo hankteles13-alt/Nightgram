@@ -24,6 +24,7 @@ export interface Post {
   tags: string[];
   likedBy?: string[];
   savedBy?: string[];
+  createdAt?: string;
 }
 
 export interface Story {
@@ -41,6 +42,9 @@ export interface Message {
   sender: 'me' | 'luna' | 'neon_wanderer' | 'night_owl' | string;
   text: string;
   timestamp: string;
+  imageUrl?: string;
+  audioUrl?: string;
+  audioDuration?: string;
 }
 
 export interface ChatMessage {
@@ -52,6 +56,9 @@ export interface ChatMessage {
   text: string;
   createdAt: any;
   timestampFormatted?: string;
+  imageUrl?: string;
+  audioUrl?: string;
+  audioDuration?: string;
 }
 
 export interface ChatParticipantProfile {

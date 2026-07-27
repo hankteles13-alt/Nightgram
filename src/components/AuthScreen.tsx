@@ -114,15 +114,26 @@ export default function AuthScreen({ onAuthSuccess }: AuthScreenProps) {
   };
 
   useEffect(() => {
-    getRedirectResult(auth)
-      .then((result) => {
-        if (result?.user) {
-          handleUserDocCheck(result.user);
+    let isMounted = true;
+    const checkRedirect = async () => {
+      try {
+        if (auth.authStateReady) {
+          await auth.authStateReady();
         }
-      })
-      .catch((err) => {
-        console.error('getRedirectResult error:', err);
-      });
+        const result = await getRedirectResult(auth);
+        if (isMounted && result?.user) {
+          await handleUserDocCheck(result.user);
+        }
+      } catch (err: any) {
+        if (!err?.message?.includes('Pending promise was never set')) {
+          console.warn('getRedirectResult notice:', err);
+        }
+      }
+    };
+    checkRedirect();
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   const handleGoogleSignIn = async () => {

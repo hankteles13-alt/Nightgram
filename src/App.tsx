@@ -28,6 +28,7 @@ import CreatePostModal from './components/CreatePostModal';
 import CreateStoryModal from './components/CreateStoryModal';
 import MessagesSection from './components/MessagesSection';
 import ProfileSection from './components/ProfileSection';
+import ExperienceHub from './components/ExperienceHub';
 import AuthScreen from './components/AuthScreen';
 import { auth, db } from './lib/firebase';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
@@ -73,7 +74,7 @@ export default function App() {
     localStorage.setItem('nightgram_theme', nextTheme ? 'true_black' : 'deep_charcoal');
   };
 
-  const [activeTab, setActiveTab] = useState<'feed' | 'messages' | 'profile'>('feed');
+  const [activeTab, setActiveTab] = useState<'feed' | 'messages' | 'profile' | 'hub'>('feed');
   const [selectedMood, setSelectedMood] = useState('All Vibes');
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showCreateStoryModal, setShowCreateStoryModal] = useState(false);
@@ -81,6 +82,30 @@ export default function App() {
   const [notifFilterTab, setNotifFilterTab] = useState<'all' | 'unread' | 'mentions'>('all');
   const [isLofiPlaying, setIsLofiPlaying] = useState(false);
   const [targetChatUser, setTargetChatUser] = useState<{ uid?: string; username: string; displayName?: string; avatar?: string } | null>(null);
+
+  // Header visibility scroll listener state
+  const [isHeaderVisible, setIsHeaderVisible] = useState(true);
+  const lastScrollY = useRef(0);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      const currentScrollY = window.scrollY;
+
+      if (currentScrollY <= 20) {
+        setIsHeaderVisible(true);
+      } else if (currentScrollY > lastScrollY.current && currentScrollY > 60) {
+        setIsHeaderVisible(false);
+        setShowNotifications(false);
+      } else if (currentScrollY < lastScrollY.current) {
+        setIsHeaderVisible(true);
+      }
+
+      lastScrollY.current = currentScrollY;
+    };
+
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
 
   const handleOpenChatWithUser = (user: { uid?: string; username: string; displayName?: string; avatar?: string }) => {
     setTargetChatUser(user);
@@ -94,13 +119,31 @@ export default function App() {
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
-        const userDocRef = doc(db, 'users', firebaseUser.uid);
-        const userDoc = await getDoc(userDocRef);
-        if (userDoc.exists()) {
-          setCurrentUser(userDoc.data());
-        } else {
-          // Create user profile document if it doesn't exist
-          const fallbackProfile = {
+        try {
+          const userDocRef = doc(db, 'users', firebaseUser.uid);
+          const userDoc = await getDoc(userDocRef);
+          if (userDoc.exists()) {
+            setCurrentUser(userDoc.data());
+          } else {
+            // Create user profile document if it doesn't exist
+            const fallbackProfile = {
+              uid: firebaseUser.uid,
+              email: firebaseUser.email || '',
+              username: firebaseUser.email?.split('@')[0] || 'dreamer',
+              displayName: firebaseUser.displayName || 'A Midnight Dreamer',
+              avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
+              bio: 'Chasing midnight dreams.',
+              followers: 0,
+              following: 0,
+              stars: 0,
+              createdAt: new Date().toISOString(),
+            };
+            await setDoc(userDocRef, fallbackProfile);
+            setCurrentUser(fallbackProfile);
+          }
+        } catch (err) {
+          console.warn('Auth user profile fetch fallback:', err);
+          setCurrentUser({
             uid: firebaseUser.uid,
             email: firebaseUser.email || '',
             username: firebaseUser.email?.split('@')[0] || 'dreamer',
@@ -110,10 +153,7 @@ export default function App() {
             followers: 0,
             following: 0,
             stars: 0,
-            createdAt: new Date().toISOString(),
-          };
-          await setDoc(userDocRef, fallbackProfile);
-          setCurrentUser(fallbackProfile);
+          });
         }
       } else {
         setCurrentUser(null);
@@ -127,11 +167,17 @@ export default function App() {
   // 2. Real-time Profile Listener (keeps profile in sync across edits)
   useEffect(() => {
     if (!currentUser?.uid) return;
-    const unsubscribeProfile = onSnapshot(doc(db, 'users', currentUser.uid), (docSnap) => {
-      if (docSnap.exists()) {
-        setCurrentUser(docSnap.data());
+    const unsubscribeProfile = onSnapshot(
+      doc(db, 'users', currentUser.uid),
+      (docSnap) => {
+        if (docSnap.exists()) {
+          setCurrentUser(docSnap.data());
+        }
+      },
+      (err) => {
+        console.warn('Profile listener error (offline/cache mode):', err);
       }
-    });
+    );
     return () => unsubscribeProfile();
   }, [currentUser?.uid]);
 
@@ -174,7 +220,7 @@ export default function App() {
         }
       }
     } catch (err) {
-      console.error('Error seeding data: ', err);
+      console.warn('Error seeding data (operating offline or seed exists):', err);
     }
   };
 
@@ -186,79 +232,113 @@ export default function App() {
 
     // Query posts sorted by creation date
     const postsQuery = query(collection(db, 'posts'), orderBy('createdAt', 'desc'));
-    const unsubscribePosts = onSnapshot(postsQuery, (snapshot) => {
-      const fetchedPosts: Post[] = [];
-      snapshot.forEach((docSnap) => {
-        const data = docSnap.data();
-        fetchedPosts.push({
-          id: docSnap.id,
-          username: data.username || 'anonymous',
-          userAvatar: data.userAvatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
-          userId: data.userId || '',
-          image: data.image || '',
-          caption: data.caption || '',
-          location: data.location || '',
-          time: data.time || 'Midnight',
-          likes: data.likedBy ? data.likedBy.length : (data.likes || 0),
-          comments: data.comments || [],
-          isLiked: data.likedBy ? data.likedBy.includes(currentUser.uid) : false,
-          isSaved: data.savedBy ? data.savedBy.includes(currentUser.uid) : false,
-          mood: data.mood || 'Vaporwave',
-          tags: data.tags || [],
-          likedBy: data.likedBy || [],
-          savedBy: data.savedBy || [],
+    const unsubscribePosts = onSnapshot(
+      postsQuery,
+      (snapshot) => {
+        const fetchedPosts: Post[] = [];
+        snapshot.forEach((docSnap) => {
+          const data = docSnap.data();
+          fetchedPosts.push({
+            id: docSnap.id,
+            username: data.username || 'anonymous',
+            userAvatar: data.userAvatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
+            userId: data.userId || '',
+            image: data.image || '',
+            caption: data.caption || '',
+            location: data.location || '',
+            time: data.time || 'Midnight',
+            likes: data.likedBy ? data.likedBy.length : (data.likes || 0),
+            comments: data.comments || [],
+            isLiked: data.likedBy ? data.likedBy.includes(currentUser.uid) : false,
+            isSaved: data.savedBy ? data.savedBy.includes(currentUser.uid) : false,
+            mood: data.mood || 'Vaporwave',
+            tags: data.tags || [],
+            likedBy: data.likedBy || [],
+            savedBy: data.savedBy || [],
+          });
         });
-      });
-      setPosts(fetchedPosts);
-    });
+        if (fetchedPosts.length > 0) {
+          setPosts(fetchedPosts);
+        } else {
+          setPosts(INITIAL_POSTS);
+        }
+      },
+      (err) => {
+        console.warn('Firestore posts snapshot warning (using initial fallback state):', err);
+        setPosts((prev) => (prev.length > 0 ? prev : INITIAL_POSTS));
+      }
+    );
 
     // Query stories sorted by creation date
     const storiesQuery = query(collection(db, 'stories'), orderBy('createdAt', 'desc'));
-    const unsubscribeStories = onSnapshot(storiesQuery, (snapshot) => {
-      const fetchedStories: Story[] = [];
-      snapshot.forEach((docSnap) => {
-        const data = docSnap.data();
-        fetchedStories.push({
-          id: docSnap.id,
-          username: data.username || 'anonymous',
-          userAvatar: data.userAvatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
-          userId: data.userId || '',
-          mediaUrl: data.mediaUrl || '',
-          caption: data.caption || '',
-          mood: data.mood || 'Cozy',
+    const unsubscribeStories = onSnapshot(
+      storiesQuery,
+      (snapshot) => {
+        const fetchedStories: Story[] = [];
+        snapshot.forEach((docSnap) => {
+          const data = docSnap.data();
+          fetchedStories.push({
+            id: docSnap.id,
+            username: data.username || 'anonymous',
+            userAvatar: data.userAvatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
+            userId: data.userId || '',
+            mediaUrl: data.mediaUrl || '',
+            caption: data.caption || '',
+            mood: data.mood || 'Cozy',
+          });
         });
-      });
-      setStories(fetchedStories);
-    });
+        if (fetchedStories.length > 0) {
+          setStories(fetchedStories);
+        } else {
+          setStories(INITIAL_STORIES);
+        }
+      },
+      (err) => {
+        console.warn('Firestore stories snapshot warning (using initial fallback state):', err);
+        setStories((prev) => (prev.length > 0 ? prev : INITIAL_STORIES));
+      }
+    );
 
     // Listen to user's whisper box (messages) in real-time
     const messagesQuery = query(collection(db, 'users', currentUser.uid, 'messages'), orderBy('createdAt', 'asc'));
-    const unsubscribeMessages = onSnapshot(messagesQuery, (snapshot) => {
-      const fetchedMessages: Message[] = [];
-      snapshot.forEach((docSnap) => {
-        const data = docSnap.data();
-        fetchedMessages.push({
-          id: docSnap.id,
-          sender: data.sender,
-          text: data.text,
-          timestamp: data.timestamp,
-        });
-      });
-      
-      if (fetchedMessages.length > 0) {
-        setMessages(fetchedMessages);
-      } else {
-        // Seed initial message list in the cloud for this user if blank
-        INITIAL_MESSAGES.forEach(async (msg) => {
-          await addDoc(collection(db, 'users', currentUser.uid, 'messages'), {
-            sender: msg.sender,
-            text: msg.text,
-            timestamp: msg.timestamp,
-            createdAt: new Date().toISOString(),
+    const unsubscribeMessages = onSnapshot(
+      messagesQuery,
+      (snapshot) => {
+        const fetchedMessages: Message[] = [];
+        snapshot.forEach((docSnap) => {
+          const data = docSnap.data();
+          fetchedMessages.push({
+            id: docSnap.id,
+            sender: data.sender,
+            text: data.text,
+            timestamp: data.timestamp,
           });
         });
+        
+        if (fetchedMessages.length > 0) {
+          setMessages(fetchedMessages);
+        } else {
+          // Seed initial message list in the cloud for this user if blank
+          INITIAL_MESSAGES.forEach(async (msg) => {
+            try {
+              await addDoc(collection(db, 'users', currentUser.uid, 'messages'), {
+                sender: msg.sender,
+                text: msg.text,
+                timestamp: msg.timestamp,
+                createdAt: new Date().toISOString(),
+              });
+            } catch (e) {
+              console.warn('Error seeding initial user message:', e);
+            }
+          });
+          setMessages(INITIAL_MESSAGES);
+        }
+      },
+      (err) => {
+        console.warn('Firestore user messages snapshot warning:', err);
+        setMessages((prev) => (prev.length > 0 ? prev : INITIAL_MESSAGES));
       }
-    });
+    );
 
     return () => {
       unsubscribePosts();
@@ -559,7 +639,9 @@ export default function App() {
       <header
         className={`sticky top-0 z-40 ${
           isTrueBlack ? 'bg-black/95 border-zinc-900/90' : 'bg-[#06060a]/85 border-zinc-900/80'
-        } backdrop-blur-xl border-b px-4 md:px-8 py-3.5 flex items-center justify-between transition-colors duration-300`}
+        } backdrop-blur-xl border-b px-4 md:px-8 py-3.5 flex items-center justify-between transition-all duration-300 ease-in-out ${
+          isHeaderVisible ? 'translate-y-0 opacity-100' : '-translate-y-full opacity-0 pointer-events-none'
+        }`}
         id="app-header-bar"
       >
         <div className="flex items-center space-x-3.5" id="brand-container">
@@ -786,84 +868,24 @@ export default function App() {
         </div>
       </header>
 
-      {/* Main Body Grid Layout */}
+      {/* Main Full-Screen Body Area */}
       <main
-        className="flex-1 max-w-5xl w-full mx-auto px-4 md:px-8 py-6 grid grid-cols-1 md:grid-cols-12 gap-8 relative z-10"
+        className="flex-1 w-full mx-auto relative z-10 flex flex-col min-h-0 overflow-hidden"
         id="app-main-workspace"
       >
-        {/* Navigation Sidebar (Desktop view) */}
-        <nav
-          className="hidden md:col-span-3 md:flex flex-col space-y-2 bg-[#06060a]/20 p-2.5 rounded-2xl border border-zinc-900/60 h-fit"
-          id="desktop-sidebar-nav"
-        >
-          <button
-            id="sidebar-nav-feed"
-            onClick={() => setActiveTab('feed')}
-            className={`flex items-center space-x-3 px-4 py-3 rounded-xl text-xs font-semibold uppercase tracking-wider transition-all duration-300 cursor-pointer ${
-              activeTab === 'feed'
-                ? 'bg-[#12121c] border border-zinc-800/80 text-cyan-300 shadow-[0_0_10px_rgba(6,182,212,0.1)]'
-                : 'bg-transparent text-zinc-400 hover:bg-zinc-900/20 hover:text-zinc-200'
-            }`}
-          >
-            <Home className="w-4.5 h-4.5" />
-            <span>Feed Lounge</span>
-          </button>
-
-          <button
-            id="sidebar-nav-messages"
-            onClick={() => setActiveTab('messages')}
-            className={`flex items-center space-x-3 px-4 py-3 rounded-xl text-xs font-semibold uppercase tracking-wider transition-all duration-300 cursor-pointer ${
-              activeTab === 'messages'
-                ? 'bg-[#12121c] border border-zinc-800/80 text-cyan-300 shadow-[0_0_10px_rgba(6,182,212,0.1)]'
-                : 'bg-transparent text-zinc-400 hover:bg-zinc-900/20 hover:text-zinc-200'
-            }`}
-          >
-            <MessageSquare className="w-4.5 h-4.5" />
-            <span>Chats</span>
-          </button>
-
-          <button
-            id="sidebar-nav-profile"
-            onClick={() => setActiveTab('profile')}
-            className={`flex items-center space-x-3 px-4 py-3 rounded-xl text-xs font-semibold uppercase tracking-wider transition-all duration-300 cursor-pointer ${
-              activeTab === 'profile'
-                ? 'bg-[#12121c] border border-zinc-800/80 text-cyan-300 shadow-[0_0_10px_rgba(6,182,212,0.1)]'
-                : 'bg-transparent text-zinc-400 hover:bg-zinc-900/20 hover:text-zinc-200'
-            }`}
-          >
-            <img
-              src={currentUser.avatar}
-              alt={currentUser.displayName}
-              className="w-5 h-5 rounded-full object-cover border border-cyan-400/50 flex-shrink-0"
-              referrerPolicy="no-referrer"
-            />
-            <span>My Nebula</span>
-          </button>
-
-          {/* Sparkly Add Post button */}
-          <button
-            id="sidebar-add-post-btn"
-            onClick={() => setShowCreateModal(true)}
-            className="flex items-center justify-center space-x-2 w-full mt-4 py-3 rounded-xl bg-gradient-to-r from-cyan-500 to-purple-500 hover:opacity-95 text-white text-xs font-bold uppercase tracking-wider transition shadow-[0_0_15px_rgba(6,182,212,0.3)] hover:shadow-[0_0_20px_rgba(168,85,247,0.4)] cursor-pointer"
-          >
-            <Plus className="w-4.5 h-4.5" />
-            <span>Illuminate</span>
-          </button>
-        </nav>
-
-        {/* Primary Middle Content Stage */}
-        <section className="col-span-1 md:col-span-9" id="app-stage-stage">
+        <section className="w-full flex-1 flex flex-col min-h-0" id="app-stage-stage">
           <AnimatePresence mode="wait">
             <motion.div
               key={activeTab}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: 10 }}
-              transition={{ duration: 0.3 }}
+              initial={{ opacity: 0, scale: 0.99 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.99 }}
+              transition={{ duration: 0.2 }}
+              className="w-full flex-1 flex flex-col min-h-0"
               id="active-content-stage-wrapper"
             >
               {activeTab === 'feed' && (
-                <div className="space-y-6" id="feed-tab-pane">
+                <div className="w-full max-w-4xl mx-auto px-3 sm:px-6 py-5 space-y-6 flex-1 overflow-y-auto" id="feed-tab-pane">
                   {/* Neon Stories list */}
                   <StoriesSection
                     stories={stories}
@@ -886,78 +908,113 @@ export default function App() {
               )}
 
               {activeTab === 'messages' && (
-                <MessagesSection
-                  currentUser={currentUser}
-                  targetChatUser={targetChatUser}
-                  onClearTargetChatUser={() => setTargetChatUser(null)}
-                  messages={messages}
-                  onSendMessage={handleSendMessage}
-                />
+                <div className="w-full flex-1 flex flex-col min-h-0" id="messages-tab-pane">
+                  <MessagesSection
+                    currentUser={currentUser}
+                    targetChatUser={targetChatUser}
+                    onClearTargetChatUser={() => setTargetChatUser(null)}
+                    messages={messages}
+                    onSendMessage={handleSendMessage}
+                  />
+                </div>
               )}
 
               {activeTab === 'profile' && (
-                <ProfileSection
-                  userProfile={currentUser}
-                  onUpdateProfile={handleUpdateProfile}
-                  posts={posts}
-                  onLike={handleLikePost}
-                  onSignOut={handleSignOut}
-                />
+                <div className="w-full max-w-4xl mx-auto px-3 sm:px-6 py-5 flex-1 overflow-y-auto" id="profile-tab-pane">
+                  <ProfileSection
+                    userProfile={currentUser}
+                    onUpdateProfile={handleUpdateProfile}
+                    posts={posts}
+                    onLike={handleLikePost}
+                    onSignOut={handleSignOut}
+                  />
+                </div>
+              )}
+
+              {activeTab === 'hub' && (
+                <div className="w-full max-w-5xl mx-auto px-3 sm:px-6 py-5 flex-1 overflow-y-auto" id="hub-tab-pane">
+                  <ExperienceHub currentUser={currentUser} />
+                </div>
               )}
             </motion.div>
           </AnimatePresence>
         </section>
       </main>
 
-      {/* Touch-Friendly Bottom Bar (Mobile view) */}
+      {/* Universal Bottom Navigation Footer */}
       <footer
-        className="sticky bottom-0 z-40 bg-[#06060a]/90 backdrop-blur-xl border-t border-zinc-900/80 p-3 flex md:hidden items-center justify-around"
-        id="mobile-bottom-nav"
+        className="sticky bottom-0 z-40 bg-[#06060a]/95 backdrop-blur-xl border-t border-zinc-900/80 px-2 sm:px-4 py-2.5 sm:py-3 flex items-center justify-around w-full shadow-[0_-5px_25px_rgba(0,0,0,0.5)]"
+        id="app-bottom-nav-footer"
       >
         <button
-          id="mobile-nav-feed"
+          id="nav-feed-btn"
           onClick={() => setActiveTab('feed')}
-          className={`p-2.5 rounded-xl transition-colors cursor-pointer ${
-            activeTab === 'feed' ? 'text-cyan-400 bg-cyan-950/20' : 'text-zinc-500'
+          className={`flex items-center space-x-1.5 sm:space-x-2 px-2.5 sm:px-3 py-2 rounded-xl transition-all cursor-pointer ${
+            activeTab === 'feed'
+              ? 'text-cyan-300 bg-cyan-950/40 border border-cyan-500/40 shadow-[0_0_12px_rgba(6,182,212,0.2)]'
+              : 'text-zinc-500 hover:text-zinc-300 hover:bg-zinc-900/40'
           }`}
+          title="Feed Lounge"
         >
-          <Home className="w-5.5 h-5.5" />
+          <Home className="w-5 h-5" />
+          <span className="hidden sm:inline text-xs font-bold tracking-wide font-sans">Feed</span>
         </button>
 
-        {/* Glowing floating "+" creator button for mobile */}
         <button
-          id="mobile-nav-create-btn"
+          id="nav-hub-btn"
+          onClick={() => setActiveTab('hub')}
+          className={`flex items-center space-x-1.5 sm:space-x-2 px-2.5 sm:px-3 py-2 rounded-xl transition-all cursor-pointer ${
+            activeTab === 'hub'
+              ? 'text-purple-300 bg-purple-950/40 border border-purple-500/40 shadow-[0_0_12px_rgba(168,85,247,0.2)]'
+              : 'text-zinc-500 hover:text-zinc-300 hover:bg-zinc-900/40'
+          }`}
+          title="Lifetime Experience Hub"
+        >
+          <Sparkles className="w-5 h-5 text-purple-400" />
+          <span className="hidden sm:inline text-xs font-bold tracking-wide font-sans">Hub</span>
+        </button>
+
+        {/* Floating gradient '+' creator button */}
+        <button
+          id="nav-create-btn"
           onClick={() => setShowCreateModal(true)}
-          className="p-3.5 rounded-full bg-gradient-to-tr from-cyan-400 to-purple-500 text-white shadow-[0_0_15px_rgba(6,182,212,0.4)] active:scale-95 transition cursor-pointer -mt-6 border-4 border-[#030305]"
+          className="p-3.5 rounded-full bg-gradient-to-tr from-cyan-400 via-cyan-500 to-purple-500 text-white shadow-[0_0_18px_rgba(6,182,212,0.45)] active:scale-95 transition cursor-pointer -mt-5 border-4 border-[#030305] hover:scale-105"
+          title="Illuminate Post"
         >
-          <Plus className="w-5.5 h-5.5" />
+          <Plus className="w-5 h-5" />
         </button>
 
         <button
-          id="mobile-nav-messages"
+          id="nav-messages-btn"
           onClick={() => setActiveTab('messages')}
-          className={`p-2.5 rounded-xl transition-colors cursor-pointer ${
-            activeTab === 'messages' ? 'text-cyan-400 bg-cyan-950/20' : 'text-zinc-500'
+          className={`flex items-center space-x-1.5 sm:space-x-2 px-2.5 sm:px-3 py-2 rounded-xl transition-all cursor-pointer ${
+            activeTab === 'messages'
+              ? 'text-cyan-300 bg-cyan-950/40 border border-cyan-500/40 shadow-[0_0_12px_rgba(6,182,212,0.2)]'
+              : 'text-zinc-500 hover:text-zinc-300 hover:bg-zinc-900/40'
           }`}
+          title="Nightgram Chats"
         >
-          <MessageSquare className="w-5.5 h-5.5" />
+          <MessageSquare className="w-5 h-5" />
+          <span className="hidden sm:inline text-xs font-bold tracking-wide font-sans">Chats</span>
         </button>
 
         <button
-          id="mobile-nav-profile"
+          id="nav-profile-btn"
           onClick={() => setActiveTab('profile')}
-          className={`p-1.5 rounded-xl transition-colors cursor-pointer border ${
+          className={`flex items-center space-x-1.5 sm:space-x-2 px-2.5 sm:px-3 py-2 rounded-xl transition-all cursor-pointer border ${
             activeTab === 'profile'
-              ? 'border-cyan-400 bg-cyan-950/30'
-              : 'border-transparent text-zinc-500'
+              ? 'border-cyan-400 bg-cyan-950/40 text-cyan-300 shadow-[0_0_12px_rgba(6,182,212,0.2)]'
+              : 'border-transparent text-zinc-500 hover:text-zinc-300 hover:bg-zinc-900/40'
           }`}
+          title="My Nebula Profile"
         >
           <img
             src={currentUser.avatar}
             alt={currentUser.displayName}
-            className="w-6 h-6 rounded-full object-cover"
+            className="w-5 h-5 rounded-full object-cover border border-cyan-400/60"
             referrerPolicy="no-referrer"
           />
+          <span className="hidden sm:inline text-xs font-bold tracking-wide font-sans">Profile</span>
         </button>
       </footer>
 

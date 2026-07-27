@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Post, Comment, UserProfile } from '../types';
 import { MOODS } from '../data';
-import { Heart, MessageCircle, Bookmark, MapPin, Search, Send, Sparkles, AlertCircle, MessageSquare } from 'lucide-react';
+import { Heart, MessageCircle, Bookmark, MapPin, Search, Send, Sparkles, AlertCircle, MessageSquare, X, Tag, SlidersHorizontal, Compass } from 'lucide-react';
 
 interface FeedSectionProps {
   posts: Post[];
@@ -26,21 +26,56 @@ export default function FeedSection({
   onOpenChatWithUser,
 }: FeedSectionProps) {
   const [searchQuery, setSearchQuery] = useState('');
+  const [searchScope, setSearchScope] = useState<'all' | 'location' | 'hashtag' | 'mood'>('all');
   const [expandedComments, setExpandedComments] = useState<{ [postId: string]: boolean }>({});
   const [newCommentTexts, setNewCommentTexts] = useState<{ [postId: string]: string }>({});
   const [doubleClickedPostId, setDoubleClickedPostId] = useState<string | null>(null);
 
-  // Filter posts based on search query and selected mood
+  // Popular quick search suggestion tags
+  const POPULAR_SUGGESTIONS = [
+    { label: '#cyberpunk', type: 'hashtag' as const },
+    { label: 'Tokyo, Japan', type: 'location' as const },
+    { label: 'Quiet Hours', type: 'mood' as const },
+    { label: '#lofi', type: 'hashtag' as const },
+    { label: 'Shibuya', type: 'location' as const },
+    { label: '#neon', type: 'hashtag' as const },
+  ];
+
+  // Filter posts based on search query, scope, and selected mood
   const filteredPosts = posts.filter((post) => {
     const matchesMood = selectedMood === 'All Vibes' || post.mood === selectedMood;
-    const matchesSearch =
-      post.caption.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      post.username.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      post.location.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      post.tags.some((tag) => tag.toLowerCase().includes(searchQuery.toLowerCase()));
+
+    if (!searchQuery.trim()) {
+      return matchesMood;
+    }
+
+    const q = searchQuery.toLowerCase().trim();
+    const queryNoHash = q.startsWith('#') ? q.slice(1) : q;
+
+    let matchesSearch = false;
+    if (searchScope === 'location') {
+      matchesSearch = post.location.toLowerCase().includes(q);
+    } else if (searchScope === 'hashtag') {
+      matchesSearch = post.tags.some((tag) => tag.toLowerCase().includes(queryNoHash));
+    } else if (searchScope === 'mood') {
+      matchesSearch = post.mood.toLowerCase().includes(q);
+    } else {
+      // 'all' scope checks caption, author, location, mood, and tags
+      matchesSearch =
+        post.caption.toLowerCase().includes(q) ||
+        post.username.toLowerCase().includes(q) ||
+        post.location.toLowerCase().includes(q) ||
+        post.mood.toLowerCase().includes(q) ||
+        post.tags.some((tag) => tag.toLowerCase().includes(queryNoHash));
+    }
 
     return matchesMood && matchesSearch;
   });
+
+  const handleQuickSuggestion = (item: { label: string; type: 'all' | 'location' | 'hashtag' | 'mood' }) => {
+    setSearchQuery(item.label);
+    setSearchScope(item.type);
+  };
 
   const handleDoubleTap = (postId: string) => {
     onLike(postId);
@@ -67,22 +102,108 @@ export default function FeedSection({
 
   return (
     <div className="space-y-6 w-full" id="feed-wrapper">
-      {/* Search Bar & Mood Filter Row */}
-      <div className="bg-[#0e0e13]/60 backdrop-blur-md rounded-2xl p-4 border border-zinc-800/80 space-y-4 shadow-xl" id="search-filter-panel">
+      {/* Search Bar & Scope Filters Panel */}
+      <div className="bg-[#0e0e13]/80 backdrop-blur-md rounded-2xl p-4 border border-zinc-800/80 space-y-3.5 shadow-xl" id="search-filter-panel">
+        {/* Main Search Input */}
         <div className="relative" id="search-input-wrapper">
-          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-zinc-500 w-4.5 h-4.5" />
+          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-cyan-400/90 w-4.5 h-4.5 pointer-events-none" />
           <input
             id="search-feed-input"
             type="text"
-            placeholder="Search late-night aesthetics, hashtags, or creators..."
+            placeholder={
+              searchScope === 'location'
+                ? 'Search locations (e.g. Tokyo, Seattle, Rainy Cafe)...'
+                : searchScope === 'hashtag'
+                ? 'Search hashtags (e.g. cyberpunk, lofi, neon)...'
+                : searchScope === 'mood'
+                ? 'Search moods (e.g. Quiet Hours, Urban Neon)...'
+                : 'Search posts by location, hashtag, mood, or text...'
+            }
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full bg-[#16161f] border border-zinc-800/80 rounded-xl py-2.5 pl-11 pr-4 text-sm text-zinc-200 placeholder-zinc-500 focus:outline-none focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/30 transition-all duration-300"
+            className="w-full bg-[#16161f] border border-zinc-800/80 rounded-xl py-2.5 pl-11 pr-10 text-sm text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-cyan-500/60 focus:ring-1 focus:ring-cyan-500/30 transition-all duration-300"
           />
+          {searchQuery && (
+            <button
+              type="button"
+              id="clear-search-btn"
+              onClick={() => setSearchQuery('')}
+              className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-zinc-400 hover:text-white rounded-full bg-zinc-800/80 hover:bg-zinc-700 transition cursor-pointer"
+              title="Clear search"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          )}
         </div>
 
-        {/* Mood filter rails */}
-        <div className="flex space-x-2 overflow-x-auto pb-1 scrollbar-none" id="mood-rail">
+        {/* Scope Filters & Quick Suggestions */}
+        <div className="flex flex-wrap items-center justify-between gap-2 pt-0.5" id="search-scope-toolbar">
+          {/* Scope Selectors */}
+          <div className="flex items-center space-x-1 bg-[#121218] p-1 rounded-xl border border-zinc-800/80" id="search-scope-tabs">
+            {(
+              [
+                { id: 'all', label: 'All', icon: <Compass className="w-3 h-3" /> },
+                { id: 'location', label: 'Location', icon: <MapPin className="w-3 h-3 text-cyan-400" /> },
+                { id: 'hashtag', label: 'Hashtag', icon: <Tag className="w-3 h-3 text-purple-400" /> },
+                { id: 'mood', label: 'Mood', icon: <Sparkles className="w-3 h-3 text-fuchsia-400" /> },
+              ] as const
+            ).map((scope) => (
+              <button
+                key={scope.id}
+                id={`search-scope-${scope.id}`}
+                onClick={() => setSearchScope(scope.id)}
+                className={`flex items-center space-x-1 px-2.5 py-1 rounded-lg text-xs font-semibold transition cursor-pointer ${
+                  searchScope === scope.id
+                    ? 'bg-cyan-950/70 border border-cyan-500/50 text-cyan-300 shadow-[0_0_8px_rgba(6,182,212,0.25)]'
+                    : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900/50'
+                }`}
+              >
+                {scope.icon}
+                <span>{scope.label}</span>
+              </button>
+            ))}
+          </div>
+
+          {/* Quick Search Tag Suggestions */}
+          <div className="flex items-center space-x-1.5 overflow-x-auto pb-0.5 scrollbar-none" id="quick-search-tags">
+            <span className="text-[10px] text-zinc-500 uppercase font-mono shrink-0 hidden sm:inline">Try:</span>
+            {POPULAR_SUGGESTIONS.map((sug) => (
+              <button
+                type="button"
+                key={sug.label}
+                id={`quick-search-${sug.label.replace(/[^a-zA-Z0-9]/g, '').toLowerCase()}`}
+                onClick={() => handleQuickSuggestion(sug)}
+                className="text-[10px] px-2 py-0.5 rounded-md bg-zinc-900/80 hover:bg-zinc-800 border border-zinc-800 text-zinc-400 hover:text-cyan-300 transition shrink-0 cursor-pointer"
+              >
+                {sug.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Search Result Feedback Bar */}
+        {searchQuery.trim() && (
+          <div className="flex items-center justify-between text-xs text-zinc-400 pt-1 border-t border-zinc-900" id="search-feedback-bar">
+            <span>
+              Found <strong className="text-cyan-300">{filteredPosts.length}</strong> {filteredPosts.length === 1 ? 'post' : 'posts'} matching{' '}
+              <span className="text-zinc-200 font-semibold">"{searchQuery}"</span>
+              {searchScope !== 'all' && <span className="text-zinc-500 ml-1">in {searchScope}</span>}
+            </span>
+            <button
+              type="button"
+              onClick={() => {
+                setSearchQuery('');
+                setSearchScope('all');
+              }}
+              className="text-[11px] text-cyan-400 hover:underline cursor-pointer"
+            >
+              Reset filters
+            </button>
+          </div>
+        )}
+
+        {/* Mood Filter Rails */}
+        <div className="flex space-x-2 overflow-x-auto pb-1 scrollbar-none pt-1 border-t border-zinc-900/80" id="mood-rail">
           {MOODS.map((mood) => {
             const isSelected = selectedMood === mood.name;
             return (
@@ -358,11 +479,12 @@ export default function FeedSection({
             <p className="text-zinc-500 text-xs max-w-sm leading-relaxed">
               No matching vibes found for "{searchQuery || selectedMood}". Try clearing your filters or creating a post of your own to illuminate this space.
             </p>
-            {(searchQuery || selectedMood !== 'All Vibes') && (
+            {(searchQuery || selectedMood !== 'All Vibes' || searchScope !== 'all') && (
               <button
                 id="reset-filters-btn"
                 onClick={() => {
                   setSearchQuery('');
+                  setSearchScope('all');
                   setSelectedMood('All Vibes');
                 }}
                 className="px-4 py-2 bg-zinc-900 border border-zinc-800 text-zinc-300 rounded-xl text-xs hover:bg-zinc-800 hover:text-white transition cursor-pointer"
