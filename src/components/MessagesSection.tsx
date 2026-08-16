@@ -1,53 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { ChatRoom, ChatMessage, UserProfile, Message } from '../types';
-import {
-  Send,
-  Moon,
-  Circle,
-  Compass,
-  Sparkles,
-  Volume2,
-  Plus,
-  Search,
-  MessageSquare,
-  X,
-  UserPlus,
-  Bot,
-  Users,
-  CheckCheck,
-  ArrowLeft,
-  Lock,
-  ShieldCheck,
-  Phone,
-  Video,
-  MoreVertical,
-  Smile,
-  Paperclip,
-  Camera,
-  Mic,
-  Image as ImageIcon,
-  Pencil,
-  Eye,
-  CheckCircle2,
-  Heart,
-  ChevronRight,
-  Bell,
-  Star,
-  Palette,
-  Download,
-  Clock,
-  DollarSign,
-  Ban,
-  Flag,
-  Edit2,
-  Folder,
-  Check,
-  Trash2,
-  Play,
-  Pause,
-  Square
-} from 'lucide-react';
+import { Send, Moon, Circle, Compass, Sparkles, Volume2, Plus, Search, MessageSquare, X, UserPlus, Bot, Users, CheckCheck, ArrowLeft, Lock, ShieldCheck, Phone, Video, MoveVertical as MoreVertical, Smile, Paperclip, Camera, Mic, Image as ImageIcon, Pencil, Eye, CircleCheck as CheckCircle2, Heart, ChevronRight, Bell, Star, Palette, Download, Clock, DollarSign, Ban, Flag, CreditCard as Edit2, Folder, Check, Trash2, Play, Pause, Square } from 'lucide-react';
 import { db } from '../lib/firebase';
 import {
   encryptMessageText,
@@ -67,6 +21,7 @@ import {
   orderBy,
   where
 } from 'firebase/firestore';
+import { fetchAiCompanionReply, type ChatTurn } from '../lib/aiCompanion';
 
 interface MessagesSectionProps {
   currentUser?: UserProfile | null;
@@ -1048,7 +1003,7 @@ export default function MessagesSection({
       return;
     }
 
-    // If active chat is AI Companion
+    // If active chat is AI Companion — real Gemini-powered reply
     if (currentAiCompanion) {
       const fullAiMessageText = imageToSend
         ? (textToSend ? textToSend + ' ' : '') + `[IMAGE: ${imageToSend}]`
@@ -1059,37 +1014,32 @@ export default function MessagesSection({
       }
       setIsAiTyping(true);
 
-      setTimeout(() => {
-        setIsAiTyping(false);
-        let reply = '';
-        if (imageToSend) {
-          reply = `Wow! That Nightgram photo you sent has a stellar aesthetic! The neon colors and nocturnal vibe fit our conversation perfectly. 🌌✨`;
-        } else if (currentAiCompanion.id === 'luna') {
-          const responses = [
-            'That is a fascinating perspective. The quiet hours of the night have a way of opening up our thoughts, free from the chatter of the daytime. 🌌',
-            'I completely agree! When the rest of the world falls asleep, there is a special focus created just for us.',
-            'Your energy feels wonderfully reflective tonight. Remember to rest your eyes occasionally. A hot cup of chamomile tea works wonders. ☕',
-            'Night is a world lit by itself. What music or lo-fi beat is keeping you company right now?',
-          ];
-          reply = responses[Math.floor(Math.random() * responses.length)];
-        } else if (currentAiCompanion.id === 'neon_wanderer') {
-          const responses = [
-            'Just got back from shooting near Shibuya Crossing! The rain was light, so the puddles were creating a perfect mirror. Let me edit a few frames and post them. 📸⚡',
-            'High contrast shadows and rich cyan highlights are my absolute sweet spot. What camera settings do you run at night?',
-          ];
-          reply = responses[Math.floor(Math.random() * responses.length)];
-        } else {
-          const responses = [
-            'Just uploaded a new 1-hour lofi mix called "Wet Pavement & Warm Lamps". Perfect for late-night coding. 🎧',
-            'Sleep patterns have been completely nocturnal lately, but the music coming out of it is some of my favorite!',
-          ];
-          reply = responses[Math.floor(Math.random() * responses.length)];
-        }
+      // Build conversation history from the messages prop for context
+      const companionHistory: ChatTurn[] = (messages || [])
+        .filter((m) => m.sender === 'me' || m.sender === currentAiCompanion.id)
+        .slice(-10)
+        .map((m) => ({
+          role: (m.sender === 'me' ? 'user' : 'assistant') as 'user' | 'assistant',
+          text: m.text,
+        }));
 
+      try {
+        const result = await fetchAiCompanionReply(
+          currentAiCompanion.id,
+          fullAiMessageText,
+          companionHistory
+        );
+        setIsAiTyping(false);
         if (onSendMessage) {
-          onSendMessage(currentAiCompanion.id as any, reply);
+          onSendMessage(currentAiCompanion.id as any, result.reply);
         }
-      }, 1200);
+      } catch (err) {
+        console.error('AI companion reply error:', err);
+        setIsAiTyping(false);
+        if (onSendMessage) {
+          onSendMessage(currentAiCompanion.id as any, 'The signal flickered for a moment. Try sending that again? 🌌');
+        }
+      }
     }
   };
 
