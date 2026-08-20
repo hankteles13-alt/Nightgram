@@ -173,20 +173,20 @@ export const INITIAL_STORIES: Story[] = [
 export const INITIAL_MESSAGES: Message[] = [
   {
     id: 'msg-1',
-    sender: 'luna',
-    text: 'Welcome to Nightgram, Ray! 🌌 I am Luna, your midnight companion. How is the late-night air feeling where you are tonight?',
+    sender: 'teles',
+    text: 'Welcome to Nightgram! 🌌 I am Teles, your midnight companion. How is the late-night air feeling where you are tonight?',
     timestamp: '12:05 AM'
   },
   {
     id: 'msg-2',
     sender: 'me',
-    text: 'Hey Luna! Just debugging some code and looking for nice nocturnal photos.',
+    text: 'Hey Teles! Just checking out Nightgram and looking for nice nocturnal photos and vibes.',
     timestamp: '12:06 AM'
   },
   {
     id: 'msg-3',
-    sender: 'luna',
-    text: 'A classic midnight pursuit! There is something magical about coding under the moon—no noise, just you and the logic flow. Check out the "Urban Neon" or "Quiet Cozy" channels in the feed for inspiration! Let me know if you need any poetic ideas for your next post caption.',
+    sender: 'teles',
+    text: 'A classic midnight pursuit! There is something magical about creating under the night sky—no noise, just pure focus and flow. Feel free to share your thoughts, bounce ideas, or ask anything as you navigate the night.',
     timestamp: '12:07 AM'
   }
 ];

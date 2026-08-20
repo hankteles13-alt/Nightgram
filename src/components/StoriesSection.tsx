@@ -56,32 +56,34 @@ export default function StoriesSection({ stories, currentUser, onOpenCreateStory
   };
 
   return (
-    <div className="w-full py-4 px-1" id="stories-tray-container">
+    <div className="w-full py-3 px-3 border-b border-zinc-800/80 bg-[#000000]/60 backdrop-blur-md" id="stories-tray-container">
       {/* Stories horizontal bar */}
-      <div className="flex space-x-4 overflow-x-auto pb-2 scrollbar-none" id="stories-scroll-wrapper">
+      <div className="flex space-x-4 overflow-x-auto pb-1 scrollbar-none items-center" id="stories-scroll-wrapper">
         {/* Current user's add story option */}
         <div
-          className="flex flex-col items-center space-y-1.5 flex-shrink-0 cursor-pointer group"
+          className="flex flex-col items-center space-y-1.5 flex-shrink-0 cursor-pointer group select-none"
           id="user-story-bubble"
           onClick={onOpenCreateStory}
         >
           <div className="relative">
-            <div className="w-16 h-16 rounded-full p-[2px] bg-gradient-to-tr from-cyan-500 to-purple-500 transition-all duration-300 group-hover:scale-105 shadow-[0_0_10px_rgba(6,182,212,0.3)]">
+            <div className="w-[66px] h-[66px] rounded-full p-[2px] bg-zinc-800/80 group-hover:bg-zinc-700 transition-all duration-300">
               <img
                 src={currentUser?.avatar || "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80"}
-                alt="My Profile"
-                className="w-full h-full object-cover rounded-full border border-black"
+                alt="Your story"
+                className="w-full h-full object-cover rounded-full border-2 border-black"
                 referrerPolicy="no-referrer"
               />
             </div>
-            <div className="absolute bottom-0 right-0 w-5 h-5 rounded-full bg-cyan-500 border-2 border-[#09090b] flex items-center justify-center text-xs text-white font-bold">
+            <div className="absolute bottom-0 right-0 w-5 h-5 rounded-full bg-[#0095f6] border-2 border-black flex items-center justify-center text-xs text-white font-bold shadow-md">
               +
             </div>
           </div>
-          <span className="text-xs text-zinc-400 group-hover:text-zinc-200">My Story</span>
+          <span className="text-[11px] text-zinc-300 font-normal tracking-tight max-w-[70px] truncate text-center">
+            your story
+          </span>
         </div>
 
-        {/* Other active stories */}
+        {/* Other active stories with iconic Instagram gradient story ring */}
         {stories.map((story, index) => {
           const storyAvatar =
             currentUser && (story.userId === currentUser.uid || story.username === currentUser.username)
@@ -90,26 +92,25 @@ export default function StoriesSection({ stories, currentUser, onOpenCreateStory
 
           return (
             <div
-              key={story.id}
+              key={`${story.id}-${index}`}
               id={`story-bubble-${story.id}`}
               onClick={() => setActiveStoryIdx(index)}
-              className="flex flex-col items-center space-y-1.5 flex-shrink-0 cursor-pointer group"
+              className="flex flex-col items-center space-y-1.5 flex-shrink-0 cursor-pointer group select-none"
             >
               <div className="relative">
-                {/* Neon pulsing ring indicator */}
-                <div className="w-16 h-16 rounded-full p-[2px] bg-gradient-to-tr from-cyan-400 via-purple-500 to-fuchsia-500 transition-all duration-300 group-hover:scale-105 shadow-[0_0_12px_rgba(217,70,239,0.2)] group-hover:shadow-[0_0_20px_rgba(6,182,212,0.6)]">
-                  <img
-                    src={storyAvatar}
-                    alt={story.username}
-                    className="w-full h-full object-cover rounded-full border border-black"
-                    referrerPolicy="no-referrer"
-                  />
-                </div>
-                <div className="absolute -bottom-1 -right-1 bg-black/80 rounded-full p-0.5 border border-zinc-800">
-                  <Moon className="w-3 h-3 text-cyan-400 fill-cyan-400" />
+                {/* Iconic Instagram Gradient Story Ring (warm pink to purple to orange gradient) */}
+                <div className="w-[66px] h-[66px] rounded-full p-[2.5px] bg-gradient-to-tr from-[#f58529] via-[#dd2a7b] to-[#8134af] transition-all duration-300 group-hover:scale-105 shadow-[0_0_12px_rgba(221,42,123,0.35)]">
+                  <div className="w-full h-full rounded-full p-[2px] bg-black">
+                    <img
+                      src={storyAvatar}
+                      alt={story.username}
+                      className="w-full h-full object-cover rounded-full"
+                      referrerPolicy="no-referrer"
+                    />
+                  </div>
                 </div>
               </div>
-              <span className="text-xs text-zinc-400 group-hover:text-white transition-colors duration-200">
+              <span className="text-[11px] text-zinc-300 font-normal tracking-tight max-w-[68px] truncate text-center group-hover:text-white transition-colors duration-200">
                 {story.username}
               </span>
             </div>
@@ -125,12 +126,12 @@ export default function StoriesSection({ stories, currentUser, onOpenCreateStory
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             id="story-modal-overlay"
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/95 backdrop-blur-md p-0 md:p-4"
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black w-full h-full p-0 overflow-hidden"
             onClick={() => setActiveStoryIdx(null)}
           >
             <div
               id="story-modal-card"
-              className="relative w-full max-w-lg h-full md:h-[85vh] bg-[#0d0d12] md:rounded-2xl overflow-hidden shadow-2xl border border-zinc-800/50 flex flex-col justify-between"
+              className="relative w-full h-full max-w-none md:max-w-2xl bg-black flex flex-col justify-between overflow-hidden shadow-2xl"
               onClick={(e) => e.stopPropagation()}
             >
               {/* Story visual background */}
@@ -151,7 +152,7 @@ export default function StoriesSection({ stories, currentUser, onOpenCreateStory
                 {/* Multi-story progress bars */}
                 <div className="flex space-x-1 mb-4" id="story-progress-indicator">
                   {stories.map((_, idx) => (
-                    <div key={idx} className="h-1 flex-1 bg-zinc-800/80 rounded-full overflow-hidden">
+                    <div key={`story-progress-bar-${idx}`} className="h-1 flex-1 bg-zinc-800/80 rounded-full overflow-hidden">
                       <div
                         className="h-full bg-gradient-to-r from-cyan-400 to-fuchsia-500 transition-all duration-75 ease-linear"
                         style={{
@@ -239,7 +240,7 @@ export default function StoriesSection({ stories, currentUser, onOpenCreateStory
               {/* Bottom text block */}
               <div className="relative z-10 p-6 md:p-8 text-center" id="story-bottom-text-container">
                 <motion.p
-                  key={activeStoryIdx}
+                  key={`story-active-caption-${activeStoryIdx}`}
                   initial={{ opacity: 0, y: 15 }}
                   animate={{ opacity: 1, y: 0 }}
                   className="text-lg md:text-xl font-medium text-zinc-100 drop-shadow-lg tracking-wide leading-relaxed font-sans max-w-sm mx-auto"

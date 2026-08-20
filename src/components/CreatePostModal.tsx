@@ -41,7 +41,6 @@ export default function CreatePostModal({ currentUser, onClose, onSubmit }: Crea
   const [caption, setCaption] = useState('');
   const [tagInput, setTagInput] = useState('');
   const [tags, setTags] = useState<string[]>(['nightgram', 'deviceUpload', 'nocturnal']);
-  const [isSparking, setIsSparking] = useState(false);
 
   // Speech Recognition dictation state
   const [isListening, setIsListening] = useState<boolean>(false);
@@ -198,43 +197,6 @@ export default function CreatePostModal({ currentUser, onClose, onSubmit }: Crea
     }
   };
 
-  // Procedural midnight caption generator
-  const handleSparkCaption = () => {
-    setIsSparking(true);
-
-    const openers = [
-      'Quiet alleyways and neon heartbeats.',
-      'When the sun sleeps, the city wakes up in indigo and magenta.',
-      'Sipping dark roast while watching reflections ripple on wet asphalt.',
-      'Chasing stars far beyond the city glow, where thoughts run slow.',
-      'An electric dream captured directly from my personal collection.',
-      'Sometimes the night sky has more stories to tell than the crowded daylight.',
-    ];
-
-    const midsections = [
-      `Captured this frame around ${location || 'a secret location'}.`,
-      `Feeling totally immersed in this classic ${mood.toLowerCase()} atmosphere.`,
-      `There is a certain calm in the late-night hours that nothing else can replicate.`,
-      `Watching the lights blink like fading stars as the clock strikes 2 AM.`,
-    ];
-
-    const closers = [
-      'Who else is awake right now? 🌌☕',
-      'Tell me your favorite midnight soundtrack. 🎧🌧️',
-      'Keep dreaming, stargazers. ✨',
-      'The quiet hours are made for creating. 💻🎨',
-    ];
-
-    const opener = openers[Math.floor(Math.random() * openers.length)];
-    const mid = midsections[Math.floor(Math.random() * midsections.length)];
-    const closer = closers[Math.floor(Math.random() * closers.length)];
-
-    setTimeout(() => {
-      setCaption(`${opener} ${mid} ${closer}`);
-      setIsSparking(false);
-    }, 600);
-  };
-
   const handleSelectPreset = (preset: typeof PRESET_SCENES[0]) => {
     setSelectedPreset(preset);
     setImageURL(preset.url);
@@ -310,31 +272,34 @@ export default function CreatePostModal({ currentUser, onClose, onSubmit }: Crea
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/90 backdrop-blur-md overflow-y-auto" id="create-post-overlay">
+    <div className="fixed inset-0 z-50 flex flex-col bg-[#09090f] w-full h-full overflow-hidden text-zinc-100 animate-fade-in" id="create-post-overlay">
       <motion.div
-        initial={{ opacity: 0, scale: 0.95, y: 20 }}
+        initial={{ opacity: 0, scale: 0.98, y: 10 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
-        exit={{ opacity: 0, scale: 0.95, y: 20 }}
+        exit={{ opacity: 0, scale: 0.98, y: 10 }}
         id="create-post-modal-card"
-        className="relative w-full max-w-2xl bg-[#09090e] border border-zinc-800 rounded-2xl overflow-hidden shadow-[0_0_40px_rgba(6,182,212,0.15)] flex flex-col my-auto max-h-[92vh]"
+        className="w-full h-full flex flex-col overflow-hidden"
       >
-        {/* Header */}
-        <div className="p-4 border-b border-zinc-900/80 flex items-center justify-between" id="create-modal-header">
-          <div className="flex items-center space-x-2">
-            <div className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse"></div>
-            <h2 className="text-sm font-semibold text-zinc-100 tracking-wide uppercase">Create New Post</h2>
+        {/* Header spanning full top screen */}
+        <div className="w-full border-b border-zinc-900/90 bg-[#0c0c14]/90 backdrop-blur-xl px-4 sm:px-8 py-3.5 flex items-center justify-between shrink-0" id="create-modal-header">
+          <div className="flex items-center space-x-3">
+            <div className="w-2.5 h-2.5 rounded-full bg-cyan-400 animate-pulse shadow-[0_0_8px_rgba(6,182,212,0.8)]"></div>
+            <div>
+              <h2 className="text-sm sm:text-base font-bold text-zinc-100 tracking-wide uppercase font-sans">Create New Post</h2>
+              <p className="text-[10px] text-zinc-500 font-mono">Publish to Midnight Lounge</p>
+            </div>
           </div>
           <button
             id="close-create-modal"
             onClick={onClose}
-            className="p-1 rounded-full text-zinc-400 hover:text-white hover:bg-zinc-900 transition cursor-pointer"
+            className="p-2 rounded-full text-zinc-400 hover:text-white hover:bg-zinc-800 transition cursor-pointer border border-zinc-800/80"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        {/* Form Body */}
-        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-6 space-y-6" id="create-post-form">
+        {/* Form Body spanning full height with centered max-width content area */}
+        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-4 sm:p-8 space-y-6 w-full max-w-4xl mx-auto" id="create-post-form">
           {/* Media Source Tab Bar */}
           <div className="space-y-3" id="media-source-section">
             <div className="flex items-center justify-between">
@@ -499,11 +464,11 @@ export default function CreatePostModal({ currentUser, onClose, onSubmit }: Crea
             {/* TAB CONTENT 2: Nocturnal Presets */}
             {mediaSourceTab === 'preset' && (
               <div className="grid grid-cols-3 md:grid-cols-6 gap-2.5" id="presets-grid">
-                {PRESET_SCENES.map((preset) => {
+                {PRESET_SCENES.map((preset, presetIdx) => {
                   const isSelected = selectedPreset?.id === preset.id;
                   return (
                     <div
-                      key={preset.id}
+                      key={`preset-${preset.id}-${presetIdx}`}
                       id={`preset-card-${preset.id}`}
                       onClick={() => handleSelectPreset(preset)}
                       className={`relative aspect-square rounded-xl overflow-hidden cursor-pointer group border-2 transition-all duration-300 ${
@@ -641,16 +606,6 @@ export default function CreatePostModal({ currentUser, onClose, onSubmit }: Crea
                         </>
                       )}
                     </button>
-                    <button
-                      type="button"
-                      id="spark-caption-btn"
-                      onClick={handleSparkCaption}
-                      disabled={isSparking}
-                      className="flex items-center space-x-1 px-2.5 py-0.5 rounded-full bg-cyan-950/20 border border-cyan-800/50 hover:bg-cyan-900/30 text-cyan-400 text-[10px] font-semibold transition cursor-pointer"
-                    >
-                      <Sparkles className="w-3 h-3 text-cyan-400" />
-                      <span>{isSparking ? 'Sparking...' : 'Spark Caption'}</span>
-                    </button>
                   </div>
                 </div>
                 <div className="relative">
@@ -659,7 +614,7 @@ export default function CreatePostModal({ currentUser, onClose, onSubmit }: Crea
                     rows={4}
                     value={caption}
                     onChange={(e) => setCaption(e.target.value)}
-                    placeholder="Tell your midnight story, dictate with voice, or let our Spark helper craft something beautiful..."
+                    placeholder="Tell your midnight story or dictate with voice..."
                     className={`w-full bg-[#121218] border rounded-xl px-3 py-2 text-xs text-zinc-300 placeholder-zinc-600 focus:outline-none leading-relaxed resize-none transition-colors ${
                       isListening ? 'border-red-500/60 shadow-[0_0_12px_rgba(239,68,68,0.2)]' : 'border-zinc-800/80 focus:border-cyan-500/50'
                     }`}
@@ -714,9 +669,9 @@ export default function CreatePostModal({ currentUser, onClose, onSubmit }: Crea
 
                 {/* Displaying tags */}
                 <div className="flex flex-wrap gap-1.5 mt-2.5" id="hashtags-display">
-                  {tags.map((tag) => (
+                  {tags.map((tag, tagIndex) => (
                     <span
-                      key={tag}
+                      key={`${tag}-${tagIndex}`}
                       className="inline-flex items-center space-x-1 px-2.5 py-0.5 rounded-full bg-[#12121c]/80 border border-zinc-800/60 text-cyan-400 text-xs font-medium"
                     >
                       <span>#{tag}</span>

@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Post, Comment, UserProfile } from '../types';
 import { MOODS } from '../data';
 import { Heart, MessageCircle, Bookmark, MapPin, Search, Send, Sparkles, AlertCircle, MessageSquare, X, Tag, SlidersHorizontal, Compass } from 'lucide-react';
+import AnimatedLikeButton from './AnimatedLikeButton';
 
 interface FeedSectionProps {
   posts: Post[];
@@ -225,50 +226,50 @@ export default function FeedSection({
         </div>
       </div>
 
-      {/* Posts Feed */}
-      <div className="space-y-6" id="posts-feed-container">
+      {/* Posts Feed - Clean Instagram Mockup Format */}
+      <div className="space-y-4 max-w-[480px] sm:max-w-xl mx-auto w-full" id="posts-feed-container">
         {filteredPosts.length > 0 ? (
-          filteredPosts.map((post) => (
+          filteredPosts.map((post, postIndex) => (
             <motion.article
-              key={post.id}
+              key={`${post.id}-${postIndex}`}
               id={`post-card-${post.id}`}
-              initial={{ opacity: 0, scale: 0.95, y: 25 }}
-              whileInView={{ opacity: 1, scale: 1, y: 0 }}
-              viewport={{ once: true, margin: '-40px' }}
-              transition={{ duration: 0.5, ease: [0.21, 0.47, 0.32, 0.98] }}
-              className="bg-[#0a0a0f] border border-zinc-800/80 rounded-2xl overflow-hidden shadow-[0_4px_30px_rgba(0,0,0,0.4)] flex flex-col"
+              initial={{ opacity: 0, y: 15 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, margin: '-20px' }}
+              transition={{ duration: 0.35 }}
+              className="bg-[#000000] border-y sm:border sm:rounded-xl border-zinc-800/80 overflow-hidden flex flex-col shadow-lg"
             >
-              {/* Header */}
-              <div className="p-4 flex items-center justify-between border-b border-zinc-900/60" id={`post-header-${post.id}`}>
-                <div className="flex items-center space-x-3">
-                  <div className="w-10 h-10 rounded-full p-[1.5px] bg-gradient-to-tr from-cyan-500 to-purple-500 shadow-[0_0_8px_rgba(168,85,247,0.3)]">
-                    <img
-                      src={
-                        currentUser && (post.userId === currentUser.uid || post.username === currentUser.username)
-                          ? currentUser.avatar
-                          : post.userAvatar
-                      }
-                      alt={post.username}
-                      className="w-full h-full object-cover rounded-full border border-black"
-                      referrerPolicy="no-referrer"
-                    />
+              {/* Post Header: Circular gradient story ring around avatar + username + 3 dots menu */}
+              <div className="px-3.5 py-2.5 flex items-center justify-between" id={`post-header-${post.id}`}>
+                <div className="flex items-center space-x-2.5 cursor-pointer">
+                  {/* Instagram Story Gradient Ring around author avatar */}
+                  <div className="w-9 h-9 rounded-full p-[2px] bg-gradient-to-tr from-[#f58529] via-[#dd2a7b] to-[#8134af]">
+                    <div className="w-full h-full rounded-full p-[1.5px] bg-black">
+                      <img
+                        src={
+                          currentUser && (post.userId === currentUser.uid || post.username === currentUser.username)
+                            ? currentUser.avatar
+                            : post.userAvatar
+                        }
+                        alt={post.username}
+                        className="w-full h-full object-cover rounded-full"
+                        referrerPolicy="no-referrer"
+                      />
+                    </div>
                   </div>
-                  <div>
-                    <div className="flex items-center space-x-1.5">
-                      <span className="text-sm font-semibold text-zinc-100">{post.username}</span>
-                      {post.mood && (
-                        <span className="text-[9px] font-medium px-1.5 py-0.5 rounded-full bg-zinc-800 border border-zinc-700/60 text-zinc-400">
-                          {post.mood}
-                        </span>
-                      )}
-                    </div>
-                    <div className="flex items-center space-x-1 text-zinc-500 text-[11px]">
-                      <MapPin className="w-3 h-3 flex-shrink-0 text-cyan-400/80" />
-                      <span className="truncate max-w-[150px]">{post.location}</span>
-                    </div>
+                  <div className="flex flex-col">
+                    <span className="text-[13px] font-semibold text-zinc-100 tracking-tight leading-none hover:underline">
+                      {post.username}
+                    </span>
+                    {post.location && (
+                      <span className="text-[10px] text-zinc-400 font-normal leading-tight mt-0.5 truncate max-w-[170px]">
+                        {post.location}
+                      </span>
+                    )}
                   </div>
                 </div>
-                <div className="flex items-center space-x-2">
+
+                <div className="flex items-center space-x-1">
                   {onOpenChatWithUser && (
                     <button
                       type="button"
@@ -281,103 +282,145 @@ export default function FeedSection({
                           avatar: post.userAvatar,
                         })
                       }
-                      className="inline-flex items-center space-x-1 px-2.5 py-1 bg-cyan-950/50 hover:bg-cyan-900/80 border border-cyan-800/50 text-cyan-300 rounded-lg text-[10px] font-semibold cursor-pointer transition"
-                      title={`Send a whisper to @${post.username}`}
+                      className="p-1.5 text-zinc-400 hover:text-white transition rounded-full hover:bg-zinc-800/60"
+                      title={`Message @${post.username}`}
                     >
-                      <MessageSquare className="w-3 h-3 text-cyan-400" />
-                      <span>Chat</span>
+                      <Send className="w-4 h-4 -rotate-45" />
                     </button>
                   )}
-                  <span className="text-[10px] text-zinc-600 font-medium">{post.time}</span>
+                  {/* Instagram 3-dots more menu */}
+                  <button
+                    type="button"
+                    id={`post-more-btn-${post.id}`}
+                    className="p-1.5 text-zinc-400 hover:text-white rounded-full transition cursor-pointer"
+                    title="More options"
+                  >
+                    <svg className="w-5 h-5 fill-current" viewBox="0 0 24 24">
+                      <circle cx="12" cy="6" r="1.5" />
+                      <circle cx="12" cy="12" r="1.5" />
+                      <circle cx="12" cy="18" r="1.5" />
+                    </svg>
+                  </button>
                 </div>
               </div>
 
-              {/* Photo Area */}
+              {/* Post Media: Full width clean photo canvas */}
               <div
                 id={`post-image-wrapper-${post.id}`}
-                className="relative aspect-square md:aspect-video w-full bg-black overflow-hidden group cursor-pointer"
+                className="relative aspect-square w-full bg-[#0a0a0f] overflow-hidden group cursor-pointer select-none"
                 onDoubleClick={() => handleDoubleTap(post.id)}
               >
                 <img
                   src={post.image}
                   alt="Post content"
-                  className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                  className="w-full h-full object-cover select-none"
                   referrerPolicy="no-referrer"
                 />
 
-                {/* Cyber gradient shade overlays */}
-                <div className="absolute inset-0 bg-gradient-to-t from-[#0a0a0f]/40 via-transparent to-transparent opacity-60 pointer-events-none"></div>
-
-                {/* Double click heart overlay */}
+                {/* Double tap heart animation overlay */}
                 <AnimatePresence>
                   {doubleClickedPostId === post.id && (
                     <motion.div
                       initial={{ scale: 0, opacity: 0 }}
-                      animate={{ scale: [0.5, 1.2, 1], opacity: [0, 1, 0] }}
+                      animate={{ scale: [0.5, 1.25, 1], opacity: [0, 1, 0] }}
                       exit={{ scale: 0, opacity: 0 }}
                       transition={{ duration: 0.6 }}
-                      className="absolute inset-0 flex items-center justify-center pointer-events-none z-10"
+                      className="absolute inset-0 flex items-center justify-center pointer-events-none z-20"
                     >
-                      <Heart className="w-20 h-20 text-fuchsia-500 fill-fuchsia-500 drop-shadow-[0_0_15px_rgba(244,63,94,0.8)]" />
+                      <Heart className="w-24 h-24 text-[#ff3040] fill-[#ff3040] drop-shadow-[0_0_20px_rgba(255,48,64,0.8)]" />
                     </motion.div>
                   )}
                 </AnimatePresence>
               </div>
 
-              {/* Action Buttons */}
-              <div className="p-4 flex items-center justify-between" id={`post-actions-${post.id}`}>
+              {/* Instagram Action Row: Like (Red Heart), Comment, Share/Paper Plane, Bookmark */}
+              <div className="px-3.5 pt-3 pb-1 flex items-center justify-between" id={`post-actions-${post.id}`}>
                 <div className="flex items-center space-x-4">
+                  {/* Heart / Like button matching exact red heart in mockup */}
                   <button
                     id={`like-btn-${post.id}`}
                     onClick={() => onLike(post.id)}
-                    className="flex items-center space-x-1.5 group text-zinc-400 hover:text-fuchsia-400 transition-colors cursor-pointer"
+                    className="transition-transform active:scale-75 cursor-pointer"
+                    title={post.isLiked ? 'Unlike' : 'Like'}
                   >
                     <Heart
-                      className={`w-5.5 h-5.5 transition-all duration-300 group-active:scale-130 ${
-                        post.isLiked ? 'text-fuchsia-500 fill-fuchsia-500 drop-shadow-[0_0_8px_rgba(217,70,239,0.4)]' : ''
+                      className={`w-[26px] h-[26px] transition-colors ${
+                        post.isLiked
+                          ? 'text-[#ed4956] fill-[#ed4956]'
+                          : 'text-zinc-100 hover:text-zinc-400'
                       }`}
                     />
-                    <span className={`text-xs font-medium ${post.isLiked ? 'text-fuchsia-400' : 'text-zinc-500'}`}>
-                      {post.likes}
-                    </span>
                   </button>
 
+                  {/* Comment Bubble Icon */}
                   <button
                     id={`comment-toggle-btn-${post.id}`}
                     onClick={() => toggleComments(post.id)}
-                    className="flex items-center space-x-1.5 text-zinc-400 hover:text-cyan-400 transition-colors cursor-pointer"
+                    className="text-zinc-100 hover:text-zinc-400 transition-colors cursor-pointer"
+                    title="Comment"
                   >
-                    <MessageCircle className="w-5.5 h-5.5" />
-                    <span className="text-xs font-medium text-zinc-500">{post.comments.length}</span>
+                    <svg className="w-[24px] h-[24px] fill-none stroke-current stroke-[1.8]" viewBox="0 0 24 24">
+                      <path d="M20.656 17.008a9.993 9.993 0 1 0-3.59 3.615L22 22Z" strokeLinejoin="round" strokeLinecap="round"/>
+                    </svg>
+                  </button>
+
+                  {/* Share / Paper Plane Icon */}
+                  <button
+                    id={`share-btn-${post.id}`}
+                    onClick={() => {
+                      if (onOpenChatWithUser) {
+                        onOpenChatWithUser({
+                          uid: post.userId,
+                          username: post.username,
+                          displayName: post.username,
+                          avatar: post.userAvatar,
+                        });
+                      }
+                    }}
+                    className="text-zinc-100 hover:text-zinc-400 transition-colors cursor-pointer"
+                    title="Share"
+                  >
+                    <svg className="w-[24px] h-[24px] fill-none stroke-current stroke-[1.8]" viewBox="0 0 24 24">
+                      <line x1="22" y1="2" x2="11" y2="13" strokeLinecap="round" strokeLinejoin="round" />
+                      <polygon points="22 2 15 22 11 13 2 9 22 2" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
                   </button>
                 </div>
 
+                {/* Bookmark / Save Icon */}
                 <button
                   id={`save-btn-${post.id}`}
                   onClick={() => onSave(post.id)}
-                  className="text-zinc-400 hover:text-amber-400 transition-colors cursor-pointer"
+                  className="text-zinc-100 hover:text-zinc-400 transition-colors cursor-pointer"
+                  title="Save"
                 >
                   <Bookmark
-                    className={`w-5.5 h-5.5 ${
-                      post.isSaved ? 'text-amber-400 fill-amber-400 drop-shadow-[0_0_8px_rgba(245,158,11,0.4)]' : ''
+                    className={`w-[24px] h-[24px] ${
+                      post.isSaved ? 'text-zinc-100 fill-zinc-100' : 'text-zinc-100 fill-none'
                     }`}
                   />
                 </button>
               </div>
 
-              {/* Caption & Tags */}
-              <div className="px-4 pb-3 space-y-1.5" id={`post-caption-box-${post.id}`}>
-                <p className="text-sm text-zinc-300 leading-relaxed font-sans">
-                  <span className="font-bold text-zinc-100 mr-2">{post.username}</span>
-                  {post.caption}
-                </p>
+              {/* Likes Count in exact mockup format: "10547 Likes" */}
+              <div className="px-3.5 pt-1 text-[13px] font-bold text-zinc-100 tracking-tight" id={`post-likes-${post.id}`}>
+                {post.likes.toLocaleString()} {post.likes === 1 ? 'like' : 'likes'}
+              </div>
 
+              {/* Caption in exact mockup format: @username Caption text with blue hashtags */}
+              <div className="px-3.5 pt-1 pb-1 text-[13px] leading-snug text-zinc-200" id={`post-caption-box-${post.id}`}>
+                <span className="font-bold text-zinc-100 mr-2 cursor-pointer hover:underline">
+                  @{post.username}
+                </span>
+                <span className="text-zinc-200 font-normal">{post.caption}</span>
+
+                {/* Hashtags in exact cyan/blue color format from mockup */}
                 {post.tags.length > 0 && (
-                  <div className="flex flex-wrap gap-1.5" id={`tags-container-${post.id}`}>
-                    {post.tags.map((tag) => (
+                  <div className="flex flex-wrap gap-x-2 gap-y-1 mt-1 text-[13px] font-normal" id={`tags-container-${post.id}`}>
+                    {post.tags.map((tag, tagIdx) => (
                       <span
-                        key={tag}
-                        className="text-xs text-cyan-400 font-medium hover:underline cursor-pointer"
+                        key={`${post.id}-tag-${tag}-${tagIdx}`}
+                        className="text-[#3897f0] hover:underline cursor-pointer"
                         onClick={() => setSearchQuery(`#${tag}`)}
                       >
                         #{tag}
@@ -387,18 +430,20 @@ export default function FeedSection({
                 )}
               </div>
 
-              {/* Collapsed comments status */}
-              {post.comments.length > 0 && !expandedComments[post.id] && (
+              {/* View comments toggle */}
+              {post.comments.length > 0 && (
                 <button
                   id={`view-comments-btn-${post.id}`}
                   onClick={() => toggleComments(post.id)}
-                  className="text-left px-4 pb-3 text-xs text-zinc-500 hover:text-zinc-400 transition font-medium"
+                  className="text-left px-3.5 pt-1 text-[12px] text-zinc-500 hover:text-zinc-400 transition cursor-pointer"
                 >
-                  View all {post.comments.length} comments
+                  {expandedComments[post.id]
+                    ? 'Hide comments'
+                    : `View all ${post.comments.length} comments`}
                 </button>
               )}
 
-              {/* Comments Section list */}
+              {/* Comments drawer */}
               <AnimatePresence>
                 {expandedComments[post.id] && post.comments.length > 0 && (
                   <motion.div
@@ -406,67 +451,59 @@ export default function FeedSection({
                     animate={{ height: 'auto', opacity: 1 }}
                     exit={{ height: 0, opacity: 0 }}
                     id={`comments-drawer-${post.id}`}
-                    className="px-4 pb-3 border-t border-zinc-900/60 pt-3 space-y-3 overflow-hidden"
+                    className="px-3.5 pt-2 pb-1 space-y-2 overflow-hidden"
                   >
-                    {post.comments.map((comment) => (
-                      <div key={comment.id} className="flex items-start space-x-2.5 text-xs" id={`comment-${comment.id}`}>
-                        <img
-                          src={
-                            currentUser && (comment.userId === currentUser.uid || comment.username === currentUser.username)
-                              ? currentUser.avatar
-                              : comment.userAvatar
-                          }
-                          alt={comment.username}
-                          className="w-6 h-6 object-cover rounded-full border border-zinc-800"
-                          referrerPolicy="no-referrer"
-                        />
-                        <div className="flex-1 bg-[#121218]/40 border border-zinc-900/50 p-2 rounded-xl">
-                          <div className="flex items-center justify-between mb-0.5">
-                            <span className="font-bold text-zinc-200">{comment.username}</span>
-                            <span className="text-[10px] text-zinc-600">{comment.time}</span>
-                          </div>
-                          <p className="text-zinc-300 leading-relaxed font-sans">{comment.text}</p>
-                        </div>
+                    {post.comments.map((comment, commentIdx) => (
+                      <div
+                        key={`${post.id}-comment-${comment.id || commentIdx}-${commentIdx}`}
+                        className="flex items-start space-x-2 text-[12px]"
+                        id={`comment-${comment.id || commentIdx}`}
+                      >
+                        <span className="font-bold text-zinc-100 shrink-0">@{comment.username}</span>
+                        <span className="text-zinc-300 flex-1">{comment.text}</span>
+                        <span className="text-[10px] text-zinc-500 shrink-0">{comment.time}</span>
                       </div>
                     ))}
                   </motion.div>
                 )}
               </AnimatePresence>
 
-              {/* Comment Input Form */}
+              {/* Post timestamp */}
+              <div className="px-3.5 pt-1 pb-2 text-[10px] uppercase text-zinc-500 font-medium tracking-wider">
+                {post.time}
+              </div>
+
+              {/* Comment Input Field */}
               <form
                 id={`comment-form-${post.id}`}
                 onSubmit={(e) => handleCommentSubmit(post.id, e)}
-                className="p-3 border-t border-zinc-900/60 bg-[#0d0d12]/30 flex items-center space-x-2.5"
+                className="px-3.5 py-2.5 border-t border-zinc-900 flex items-center space-x-2.5"
               >
                 <img
                   src={currentUser?.avatar || "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80"}
                   alt={currentUser?.displayName || "Me"}
-                  className="w-7 h-7 object-cover rounded-full border border-cyan-400/40 shadow-[0_0_8px_rgba(6,182,212,0.2)]"
+                  className="w-6 h-6 object-cover rounded-full"
                   referrerPolicy="no-referrer"
                 />
                 <input
                   id={`comment-input-${post.id}`}
                   type="text"
-                  placeholder="Share a late-night thought..."
+                  placeholder="Add a comment..."
                   value={newCommentTexts[post.id] || ''}
                   onChange={(e) =>
                     setNewCommentTexts((prev) => ({ ...prev, [post.id]: e.target.value }))
                   }
-                  className="flex-1 bg-[#121218] border border-zinc-800/80 rounded-xl px-3 py-1.5 text-xs text-zinc-200 placeholder-zinc-600 focus:outline-none focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/20"
+                  className="flex-1 bg-transparent border-none text-[12px] text-zinc-200 placeholder-zinc-500 focus:outline-none"
                 />
-                <button
-                  id={`submit-comment-${post.id}`}
-                  type="submit"
-                  disabled={!newCommentTexts[post.id]?.trim()}
-                  className={`p-1.5 rounded-xl border transition ${
-                    newCommentTexts[post.id]?.trim()
-                      ? 'bg-gradient-to-r from-cyan-500 to-purple-500 border-transparent text-white hover:opacity-90 cursor-pointer'
-                      : 'bg-zinc-900 border-zinc-800/80 text-zinc-600 cursor-not-allowed'
-                  }`}
-                >
-                  <Send className="w-3.5 h-3.5" />
-                </button>
+                {newCommentTexts[post.id]?.trim() && (
+                  <button
+                    id={`submit-comment-${post.id}`}
+                    type="submit"
+                    className="text-[#0095f6] font-semibold text-[12px] hover:text-[#1877f2] transition cursor-pointer"
+                  >
+                    Post
+                  </button>
+                )}
               </form>
             </motion.article>
           ))

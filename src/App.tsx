@@ -5,10 +5,14 @@ import {
   MessageSquare,
   User,
   Plus,
+  PlusSquare,
   Bell,
   Play,
   Pause,
   Home,
+  Search,
+  Film,
+  Heart,
   CheckCircle,
   Clock,
   Sparkles,
@@ -28,8 +32,10 @@ import CreatePostModal from './components/CreatePostModal';
 import CreateStoryModal from './components/CreateStoryModal';
 import MessagesSection from './components/MessagesSection';
 import ProfileSection from './components/ProfileSection';
-import ExperienceHub from './components/ExperienceHub';
+import { ReelsSection } from './components/ReelsSection';
+import WelcomeCoverScreen from './components/WelcomeCoverScreen';
 import AuthScreen from './components/AuthScreen';
+import AvatarStatusIndicator from './components/AvatarStatusIndicator';
 import { auth, db } from './lib/firebase';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
 import {
@@ -74,7 +80,10 @@ export default function App() {
     localStorage.setItem('nightgram_theme', nextTheme ? 'true_black' : 'deep_charcoal');
   };
 
-  const [activeTab, setActiveTab] = useState<'feed' | 'messages' | 'profile' | 'hub'>('feed');
+  const [activeTab, setActiveTab] = useState<'feed' | 'shorts' | 'messages' | 'profile'>('feed');
+  const [hasAcceptedTerms, setHasAcceptedTerms] = useState<boolean>(() => {
+    return localStorage.getItem('niytee_agreed_terms') === 'true';
+  });
   const [selectedMood, setSelectedMood] = useState('All Vibes');
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showCreateStoryModal, setShowCreateStoryModal] = useState(false);
@@ -426,7 +435,7 @@ export default function App() {
     }
   };
 
-  const handleSendMessage = async (sender: 'me' | 'luna' | 'neon_wanderer' | 'night_owl', text: string) => {
+  const handleSendMessage = async (sender: 'me' | 'teles' | string, text: string) => {
     if (!currentUser) return;
     try {
       await addDoc(collection(db, 'users', currentUser.uid, 'messages'), {
@@ -621,14 +630,24 @@ export default function App() {
   }
 
   if (!currentUser) {
+    if (!hasAcceptedTerms) {
+      return (
+        <WelcomeCoverScreen
+          onAgree={() => {
+            localStorage.setItem('niytee_agreed_terms', 'true');
+            setHasAcceptedTerms(true);
+          }}
+        />
+      );
+    }
     return <AuthScreen onAuthSuccess={(profile) => setCurrentUser(profile)} />;
   }
 
   return (
     <div
-      className={`min-h-screen ${
+      className={`min-h-screen h-screen w-full ${
         isTrueBlack ? 'bg-black' : 'bg-[#030305]'
-      } text-zinc-200 flex flex-col font-sans antialiased selection:bg-cyan-500/30 selection:text-cyan-200 transition-colors duration-300`}
+      } text-zinc-200 flex flex-col font-sans antialiased selection:bg-cyan-500/30 selection:text-cyan-200 transition-colors duration-300 overflow-hidden`}
       id="nightgram-root-container"
     >
       {/* Absolute Neon Ambient Background Blobs */}
@@ -636,17 +655,18 @@ export default function App() {
       <div className={`fixed bottom-0 left-1/4 w-[600px] h-[600px] bg-purple-950/10 rounded-full blur-[150px] pointer-events-none z-0 transition-opacity duration-300 ${isTrueBlack ? 'opacity-15' : 'opacity-100'}`}></div>
 
       {/* Primary Sticky Header */}
-      <header
-        className={`sticky top-0 z-40 ${
-          isTrueBlack ? 'bg-black/95 border-zinc-900/90' : 'bg-[#06060a]/85 border-zinc-900/80'
-        } backdrop-blur-xl border-b px-4 md:px-8 py-3.5 flex items-center justify-between transition-all duration-300 ease-in-out ${
-          isHeaderVisible ? 'translate-y-0 opacity-100' : '-translate-y-full opacity-0 pointer-events-none'
-        }`}
-        id="app-header-bar"
-      >
-        <div className="flex items-center space-x-3.5" id="brand-container">
+      {activeTab !== 'shorts' && activeTab !== 'messages' && (
+        <header
+          className={`sticky top-0 z-40 ${
+            isTrueBlack ? 'bg-black/95 border-zinc-900/90' : 'bg-[#06060a]/85 border-zinc-900/80'
+          } backdrop-blur-xl border-b px-4 md:px-8 py-3 flex items-center justify-between transition-all duration-300 ease-in-out ${
+            isHeaderVisible ? 'translate-y-0 opacity-100' : '-translate-y-full opacity-0 pointer-events-none'
+          }`}
+          id="app-header-bar"
+        >
+        <div className="flex items-center space-x-3 cursor-pointer select-none" id="brand-container" onClick={() => setActiveTab('feed')}>
           <div className="relative" id="logo-wrapper">
-            <Moon className="w-6.5 h-6.5 text-cyan-400 fill-cyan-400 drop-shadow-[0_0_8px_rgba(6,182,212,0.6)]" />
+            <Moon className="w-6 h-6 text-cyan-400 fill-cyan-400 drop-shadow-[0_0_8px_rgba(6,182,212,0.6)]" />
             <div className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-purple-500 animate-ping"></div>
           </div>
           <div>
@@ -660,8 +680,8 @@ export default function App() {
         </div>
 
         {/* Global Utilities (Theme Toggle, Lofi, Notifications, Quick Chats) */}
-        <div className="flex items-center space-x-2.5" id="global-header-controls">
-          {/* Theme Mode Toggle (True Black vs Deep Charcoal) */}
+        <div className="flex items-center space-x-2 sm:space-x-2.5" id="global-header-controls">
+          {/* Theme Mode Toggle */}
           <button
             id="theme-toggle-btn"
             onClick={toggleTheme}
@@ -673,7 +693,7 @@ export default function App() {
             title={isTrueBlack ? 'Switch to Deep Charcoal Theme' : 'Switch to True Black (OLED) Theme'}
           >
             <Contrast className={`w-3.5 h-3.5 ${isTrueBlack ? 'text-cyan-400' : 'text-zinc-400'}`} />
-            <span className="hidden sm:inline text-[10px] uppercase font-mono tracking-wider">
+            <span className="hidden md:inline text-[10px] uppercase font-mono tracking-wider">
               {isTrueBlack ? 'True Black' : 'Deep Charcoal'}
             </span>
           </button>
@@ -682,26 +702,26 @@ export default function App() {
           <button
             id="lofi-toggle-btn"
             onClick={toggleLofi}
-            className={`flex items-center space-x-2 px-3 py-1.5 rounded-xl border text-[11px] font-semibold transition-all cursor-pointer ${
+            className={`flex items-center space-x-1.5 sm:space-x-2 px-2.5 sm:px-3 py-1.5 rounded-xl border text-[11px] font-semibold transition-all cursor-pointer ${
               isLofiPlaying
                 ? 'bg-cyan-950/20 border-cyan-500/50 text-cyan-300 shadow-[0_0_10px_rgba(6,182,212,0.15)]'
-                : 'bg-[#121218]/40 border-zinc-800/60 text-zinc-500 hover:text-zinc-300 hover:border-zinc-700'
+                : 'bg-[#121218]/40 border-zinc-800/60 text-zinc-400 hover:text-zinc-200 hover:border-zinc-700'
             }`}
+            title="Midnight Lofi Music"
           >
             {isLofiPlaying ? (
               <>
-                {/* Bouncing Audio visualizer bars */}
                 <div className="flex space-x-0.5 items-end h-3" id="audio-bars">
                   <span className="w-[2px] bg-cyan-400 animate-[bounce_0.8s_infinite_alternate]" style={{ animationDelay: '0ms' }}></span>
                   <span className="w-[2px] bg-cyan-400 animate-[bounce_0.6s_infinite_alternate]" style={{ animationDelay: '200ms' }}></span>
                   <span className="w-[2px] bg-cyan-400 animate-[bounce_1s_infinite_alternate]" style={{ animationDelay: '400ms' }}></span>
                 </div>
-                <span>Chill Chords</span>
+                <span className="hidden sm:inline">Chill Chords</span>
               </>
             ) : (
               <>
                 <Play className="w-3 h-3 text-zinc-400 fill-zinc-400" />
-                <span>Midnight Lofi</span>
+                <span className="hidden sm:inline">Lofi</span>
               </>
             )}
           </button>
@@ -710,14 +730,14 @@ export default function App() {
           <button
             id="top-header-chats-btn"
             onClick={() => setActiveTab('messages')}
-            className={`p-2.5 rounded-xl border transition cursor-pointer relative ${
+            className={`p-2 rounded-xl border transition cursor-pointer relative ${
               activeTab === 'messages'
-                ? 'bg-cyan-950/20 border-cyan-500/50 text-cyan-300 shadow-[0_0_10px_rgba(6,182,212,0.15)]'
+                ? 'bg-cyan-950/30 border-cyan-500/50 text-cyan-300 shadow-[0_0_10px_rgba(6,182,212,0.2)]'
                 : 'bg-[#121218]/40 border-zinc-800/60 text-zinc-400 hover:text-white'
             }`}
             title="View All Encrypted Chats"
           >
-            <MessageSquare className="w-4.5 h-4.5" />
+            <MessageSquare className="w-4 h-4" />
           </button>
 
           {/* Notifications bell with badge */}
@@ -725,15 +745,16 @@ export default function App() {
             <button
               id="notifications-bell-btn"
               onClick={() => setShowNotifications(!showNotifications)}
-              className={`p-2.5 rounded-xl border transition cursor-pointer relative ${
+              className={`p-2 rounded-xl border transition cursor-pointer relative ${
                 showNotifications
-                  ? 'bg-purple-950/20 border-purple-500/50 text-purple-300'
+                  ? 'bg-purple-950/30 border-purple-500/50 text-purple-300'
                   : 'bg-[#121218]/40 border-zinc-800/60 text-zinc-400 hover:text-white'
               }`}
+              title="Notifications"
             >
-              <Bell className="w-4.5 h-4.5" />
+              <Bell className="w-4 h-4" />
               {unreadNotifsCount > 0 && (
-                <span className="absolute -top-1 -right-1 w-4.5 h-4.5 rounded-full bg-fuchsia-500 text-black font-extrabold text-[9px] flex items-center justify-center border-2 border-[#030305]">
+                <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-fuchsia-500 text-black font-extrabold text-[9px] flex items-center justify-center border-2 border-[#030305]">
                   {unreadNotifsCount}
                 </span>
               )}
@@ -815,10 +836,10 @@ export default function App() {
 
                   <div className="max-h-72 overflow-y-auto divide-y divide-zinc-900/40 p-1" id="notifications-list-container">
                     {filteredNotifications.length > 0 ? (
-                      filteredNotifications.map((notif: any) => (
+                      filteredNotifications.map((notif: any, notifIdx: number) => (
                         <div
-                          key={notif.id}
-                          id={`notif-row-${notif.id}`}
+                          key={`notif-${notif.id || 'notif'}-${notifIdx}`}
+                          id={`notif-row-${notif.id || notifIdx}`}
                           onClick={() => handleNotificationClick(notif.id)}
                           className={`group p-3 rounded-xl flex items-start space-x-3 transition-all duration-200 ease-out cursor-pointer ${
                             notif.unread
@@ -826,12 +847,15 @@ export default function App() {
                               : 'bg-transparent hover:bg-zinc-900/70 border border-transparent hover:border-zinc-800/60'
                           }`}
                         >
-                          <img
-                            src={notif.userAvatar}
-                            alt={notif.username}
-                            className="w-8 h-8 object-cover rounded-full border border-zinc-800 group-hover:border-zinc-600 group-hover:scale-105 transition-all duration-200"
-                            referrerPolicy="no-referrer"
-                          />
+                          <div className="relative flex-shrink-0">
+                            <img
+                              src={notif.userAvatar}
+                              alt={notif.username}
+                              className="w-8 h-8 object-cover rounded-full border border-zinc-800 group-hover:border-zinc-600 group-hover:scale-105 transition-all duration-200"
+                              referrerPolicy="no-referrer"
+                            />
+                            <AvatarStatusIndicator isOnline={true} size="sm" />
+                          </div>
                           <div className="flex-1 text-[11px] leading-relaxed" id={`notif-meta-${notif.id}`}>
                             <p className="text-zinc-400 group-hover:text-zinc-200 transition-colors duration-200">
                               <span className="font-bold text-zinc-200 group-hover:text-white mr-1 transition-colors duration-200">
@@ -867,6 +891,7 @@ export default function App() {
           </div>
         </div>
       </header>
+      )}
 
       {/* Main Full-Screen Body Area */}
       <main
@@ -885,7 +910,7 @@ export default function App() {
               id="active-content-stage-wrapper"
             >
               {activeTab === 'feed' && (
-                <div className="w-full max-w-4xl mx-auto px-3 sm:px-6 py-5 space-y-6 flex-1 overflow-y-auto" id="feed-tab-pane">
+                <div className="w-full h-full max-w-5xl mx-auto px-3 sm:px-6 lg:px-8 py-5 space-y-6 flex-1 overflow-y-auto" id="feed-tab-pane">
                   {/* Neon Stories list */}
                   <StoriesSection
                     stories={stories}
@@ -907,20 +932,32 @@ export default function App() {
                 </div>
               )}
 
+              {activeTab === 'shorts' && (
+                <ReelsSection
+                  currentUser={currentUser}
+                  onClose={() => setActiveTab('feed')}
+                  onOpenChatWithUser={handleOpenChatWithUser}
+                />
+              )}
+
               {activeTab === 'messages' && (
-                <div className="w-full flex-1 flex flex-col min-h-0" id="messages-tab-pane">
+                <div className="w-full h-full flex-1 flex flex-col min-h-0 overflow-hidden" id="messages-tab-pane">
                   <MessagesSection
                     currentUser={currentUser}
                     targetChatUser={targetChatUser}
                     onClearTargetChatUser={() => setTargetChatUser(null)}
                     messages={messages}
                     onSendMessage={handleSendMessage}
+                    onClose={() => {
+                      setTargetChatUser(null);
+                      setActiveTab('feed');
+                    }}
                   />
                 </div>
               )}
 
               {activeTab === 'profile' && (
-                <div className="w-full max-w-4xl mx-auto px-3 sm:px-6 py-5 flex-1 overflow-y-auto" id="profile-tab-pane">
+                <div className="w-full h-full max-w-5xl mx-auto px-3 sm:px-6 lg:px-8 py-5 flex-1 overflow-y-auto" id="profile-tab-pane">
                   <ProfileSection
                     userProfile={currentUser}
                     onUpdateProfile={handleUpdateProfile}
@@ -930,93 +967,93 @@ export default function App() {
                   />
                 </div>
               )}
-
-              {activeTab === 'hub' && (
-                <div className="w-full max-w-5xl mx-auto px-3 sm:px-6 py-5 flex-1 overflow-y-auto" id="hub-tab-pane">
-                  <ExperienceHub currentUser={currentUser} />
-                </div>
-              )}
             </motion.div>
           </AnimatePresence>
         </section>
       </main>
 
       {/* Universal Bottom Navigation Footer */}
-      <footer
-        className="sticky bottom-0 z-40 bg-[#06060a]/95 backdrop-blur-xl border-t border-zinc-900/80 px-2 sm:px-4 py-2.5 sm:py-3 flex items-center justify-around w-full shadow-[0_-5px_25px_rgba(0,0,0,0.5)]"
-        id="app-bottom-nav-footer"
-      >
-        <button
-          id="nav-feed-btn"
-          onClick={() => setActiveTab('feed')}
-          className={`flex items-center space-x-1.5 sm:space-x-2 px-2.5 sm:px-3 py-2 rounded-xl transition-all cursor-pointer ${
-            activeTab === 'feed'
-              ? 'text-cyan-300 bg-cyan-950/40 border border-cyan-500/40 shadow-[0_0_12px_rgba(6,182,212,0.2)]'
-              : 'text-zinc-500 hover:text-zinc-300 hover:bg-zinc-900/40'
-          }`}
-          title="Feed Lounge"
+      {activeTab !== 'shorts' && activeTab !== 'messages' && (
+        <footer
+          className="sticky bottom-0 z-40 bg-[#06060a]/95 backdrop-blur-xl border-t border-zinc-900/80 px-2 sm:px-4 py-2.5 sm:py-3 flex items-center justify-around w-full shadow-[0_-5px_25px_rgba(0,0,0,0.5)]"
+          id="app-bottom-nav-footer"
         >
-          <Home className="w-5 h-5" />
-          <span className="hidden sm:inline text-xs font-bold tracking-wide font-sans">Feed</span>
-        </button>
+          <button
+            id="nav-feed-btn"
+            onClick={() => setActiveTab('feed')}
+            className={`flex items-center space-x-1.5 sm:space-x-2 px-2.5 sm:px-3 py-2 rounded-xl transition-all cursor-pointer ${
+              activeTab === 'feed'
+                ? 'text-cyan-300 bg-cyan-950/40 border border-cyan-500/40 shadow-[0_0_12px_rgba(6,182,212,0.2)]'
+                : 'text-zinc-500 hover:text-zinc-300 hover:bg-zinc-900/40'
+            }`}
+            title="Feed Lounge"
+          >
+            <Home className="w-5 h-5" />
+            <span className="hidden sm:inline text-xs font-bold tracking-wide font-sans">Feed</span>
+          </button>
 
-        <button
-          id="nav-hub-btn"
-          onClick={() => setActiveTab('hub')}
-          className={`flex items-center space-x-1.5 sm:space-x-2 px-2.5 sm:px-3 py-2 rounded-xl transition-all cursor-pointer ${
-            activeTab === 'hub'
-              ? 'text-purple-300 bg-purple-950/40 border border-purple-500/40 shadow-[0_0_12px_rgba(168,85,247,0.2)]'
-              : 'text-zinc-500 hover:text-zinc-300 hover:bg-zinc-900/40'
-          }`}
-          title="Lifetime Experience Hub"
-        >
-          <Sparkles className="w-5 h-5 text-purple-400" />
-          <span className="hidden sm:inline text-xs font-bold tracking-wide font-sans">Hub</span>
-        </button>
+          {/* Short Videos Tab */}
+          <button
+            id="nav-shorts-btn"
+            onClick={() => setActiveTab('shorts')}
+            className={`flex items-center space-x-1.5 sm:space-x-2 px-2.5 sm:px-3 py-2 rounded-xl transition-all cursor-pointer ${
+              activeTab === 'shorts'
+                ? 'text-cyan-300 bg-cyan-950/40 border border-cyan-500/40 shadow-[0_0_12px_rgba(6,182,212,0.2)]'
+                : 'text-zinc-500 hover:text-zinc-300 hover:bg-zinc-900/40'
+            }`}
+            title="Short Videos"
+          >
+            <Film className="w-5 h-5" />
+            <span className="hidden sm:inline text-xs font-bold tracking-wide font-sans">Shorts</span>
+          </button>
 
-        {/* Floating gradient '+' creator button */}
-        <button
-          id="nav-create-btn"
-          onClick={() => setShowCreateModal(true)}
-          className="p-3.5 rounded-full bg-gradient-to-tr from-cyan-400 via-cyan-500 to-purple-500 text-white shadow-[0_0_18px_rgba(6,182,212,0.45)] active:scale-95 transition cursor-pointer -mt-5 border-4 border-[#030305] hover:scale-105"
-          title="Illuminate Post"
-        >
-          <Plus className="w-5 h-5" />
-        </button>
+          {/* Floating gradient '+' creator button */}
+          <button
+            id="nav-create-btn"
+            onClick={() => setShowCreateModal(true)}
+            className="p-3.5 rounded-full bg-gradient-to-tr from-cyan-400 via-cyan-500 to-purple-500 text-white shadow-[0_0_18px_rgba(6,182,212,0.45)] active:scale-95 transition cursor-pointer -mt-5 border-4 border-[#030305] hover:scale-105"
+            title="Illuminate Post"
+          >
+            <Plus className="w-5 h-5" />
+          </button>
 
-        <button
-          id="nav-messages-btn"
-          onClick={() => setActiveTab('messages')}
-          className={`flex items-center space-x-1.5 sm:space-x-2 px-2.5 sm:px-3 py-2 rounded-xl transition-all cursor-pointer ${
-            activeTab === 'messages'
-              ? 'text-cyan-300 bg-cyan-950/40 border border-cyan-500/40 shadow-[0_0_12px_rgba(6,182,212,0.2)]'
-              : 'text-zinc-500 hover:text-zinc-300 hover:bg-zinc-900/40'
-          }`}
-          title="Nightgram Chats"
-        >
-          <MessageSquare className="w-5 h-5" />
-          <span className="hidden sm:inline text-xs font-bold tracking-wide font-sans">Chats</span>
-        </button>
+          <button
+            id="nav-messages-btn"
+            onClick={() => setActiveTab('messages')}
+            className={`flex items-center space-x-1.5 sm:space-x-2 px-2.5 sm:px-3 py-2 rounded-xl transition-all cursor-pointer ${
+              activeTab === 'messages'
+                ? 'text-cyan-300 bg-cyan-950/40 border border-cyan-500/40 shadow-[0_0_12px_rgba(6,182,212,0.2)]'
+                : 'text-zinc-500 hover:text-zinc-300 hover:bg-zinc-900/40'
+            }`}
+            title="Nightgram Chats"
+          >
+            <MessageSquare className="w-5 h-5" />
+            <span className="hidden sm:inline text-xs font-bold tracking-wide font-sans">Chats</span>
+          </button>
 
-        <button
-          id="nav-profile-btn"
-          onClick={() => setActiveTab('profile')}
-          className={`flex items-center space-x-1.5 sm:space-x-2 px-2.5 sm:px-3 py-2 rounded-xl transition-all cursor-pointer border ${
-            activeTab === 'profile'
-              ? 'border-cyan-400 bg-cyan-950/40 text-cyan-300 shadow-[0_0_12px_rgba(6,182,212,0.2)]'
-              : 'border-transparent text-zinc-500 hover:text-zinc-300 hover:bg-zinc-900/40'
-          }`}
-          title="My Nebula Profile"
-        >
-          <img
-            src={currentUser.avatar}
-            alt={currentUser.displayName}
-            className="w-5 h-5 rounded-full object-cover border border-cyan-400/60"
-            referrerPolicy="no-referrer"
-          />
-          <span className="hidden sm:inline text-xs font-bold tracking-wide font-sans">Profile</span>
-        </button>
-      </footer>
+          <button
+            id="nav-profile-btn"
+            onClick={() => setActiveTab('profile')}
+            className={`flex items-center space-x-1.5 sm:space-x-2 px-2.5 sm:px-3 py-2 rounded-xl transition-all cursor-pointer border ${
+              activeTab === 'profile'
+                ? 'border-cyan-400 bg-cyan-950/40 text-cyan-300 shadow-[0_0_12px_rgba(6,182,212,0.2)]'
+                : 'border-transparent text-zinc-500 hover:text-zinc-300 hover:bg-zinc-900/40'
+            }`}
+            title="My Nebula Profile"
+          >
+            <div className="relative">
+              <img
+                src={currentUser?.avatar || "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80"}
+                alt={currentUser?.displayName || "Profile"}
+                className="w-5 h-5 rounded-full object-cover border border-cyan-400/60"
+                referrerPolicy="no-referrer"
+              />
+              <AvatarStatusIndicator isOnline={true} size="sm" />
+            </div>
+            <span className="hidden sm:inline text-xs font-bold tracking-wide font-sans">Profile</span>
+          </button>
+        </footer>
+      )}
 
       {/* Create post & story modal dialogs */}
       <AnimatePresence>

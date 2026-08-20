@@ -123,7 +123,6 @@ export default function CreateStoryModal({ currentUser, onClose, onSubmit }: Cre
   // Story Metadata
   const [caption, setCaption] = useState<string>('Lost in midnight thoughts...');
   const [mood, setMood] = useState<string>('Urban Neon');
-  const [isSparking, setIsSparking] = useState<boolean>(false);
   const [isPublishing, setIsPublishing] = useState<boolean>(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -180,23 +179,6 @@ export default function CreateStoryModal({ currentUser, onClose, onSubmit }: Cre
     setSelectedFileName('');
     setSelectedFileSize('');
     setUploadError(null);
-  };
-
-  const handleSparkCaption = () => {
-    setIsSparking(true);
-    const storyCaptions = [
-      'Midnight caffeine and indigo skies. 🌌☕',
-      'Reflections on wet asphalt when the city goes quiet.',
-      'Stargazing beyond the city lights. ✨🔭',
-      'The quiet hours are made for creating. 🎧🎨',
-      'Catching the late-night vaporwave frequency.',
-      'Sipping dark roast while watching reflections ripple.',
-    ];
-    const picked = storyCaptions[Math.floor(Math.random() * storyCaptions.length)];
-    setTimeout(() => {
-      setCaption(picked);
-      setIsSparking(false);
-    }, 500);
   };
 
   // Render composite image with canvas to bake overlay and filters into final story image
@@ -421,36 +403,36 @@ export default function CreateStoryModal({ currentUser, onClose, onSubmit }: Cre
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-3 md:p-6 bg-black/92 backdrop-blur-md overflow-y-auto"
+      className="fixed inset-0 z-50 flex flex-col bg-[#09090f] w-full h-full overflow-hidden text-zinc-100 animate-fade-in"
       id="create-story-overlay"
     >
       <motion.div
-        initial={{ opacity: 0, scale: 0.95, y: 20 }}
+        initial={{ opacity: 0, scale: 0.98, y: 10 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
-        exit={{ opacity: 0, scale: 0.95, y: 20 }}
+        exit={{ opacity: 0, scale: 0.98, y: 10 }}
         id="create-story-modal-card"
-        className="relative w-full max-w-4xl bg-[#09090e] border border-zinc-800 rounded-2xl overflow-hidden shadow-[0_0_50px_rgba(168,85,247,0.15)] flex flex-col my-auto max-h-[92vh]"
+        className="w-full h-full flex flex-col overflow-hidden"
       >
-        {/* Header */}
-        <div className="p-4 border-b border-zinc-900 flex items-center justify-between shrink-0" id="create-story-header">
-          <div className="flex items-center space-x-2">
-            <div className="w-2.5 h-2.5 rounded-full bg-fuchsia-400 animate-pulse"></div>
+        {/* Header spanning full top width */}
+        <div className="w-full border-b border-zinc-900 bg-[#0c0c14]/90 backdrop-blur-xl px-4 sm:px-8 py-3.5 flex items-center justify-between shrink-0" id="create-story-header">
+          <div className="flex items-center space-x-3">
+            <div className="w-2.5 h-2.5 rounded-full bg-fuchsia-400 animate-pulse shadow-[0_0_8px_rgba(217,70,239,0.8)]"></div>
             <div>
-              <h2 className="text-xs font-bold text-zinc-100 uppercase tracking-widest">Create Ephemeral Story</h2>
+              <h2 className="text-sm sm:text-base font-bold text-zinc-100 uppercase tracking-widest font-sans">Create Ephemeral Story</h2>
               <p className="text-[10px] text-zinc-500 font-mono">24h Nocturnal Broadcast</p>
             </div>
           </div>
           <button
             id="close-create-story-modal"
             onClick={onClose}
-            className="p-1.5 rounded-full text-zinc-400 hover:text-white hover:bg-zinc-900 transition cursor-pointer"
+            className="p-2 rounded-full text-zinc-400 hover:text-white hover:bg-zinc-800 transition cursor-pointer border border-zinc-800/80"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Modal Main Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-12 flex-1 overflow-y-auto divide-y md:divide-y-0 md:divide-x divide-zinc-900">
+        <div className="grid grid-cols-1 md:grid-cols-12 flex-1 overflow-y-auto divide-y md:divide-y-0 md:divide-x divide-zinc-900 w-full max-w-6xl mx-auto">
           {/* LEFT COLUMN: Controls & Editing Studio (7 cols on desktop) */}
           <div className="md:col-span-7 p-5 space-y-6 overflow-y-auto" id="story-studio-controls">
             {/* Step 1: Media Selection Source */}
@@ -584,11 +566,11 @@ export default function CreateStoryModal({ currentUser, onClose, onSubmit }: Cre
               {/* Nocturnal Presets */}
               {mediaSourceTab === 'preset' && (
                 <div className="grid grid-cols-3 gap-2">
-                  {PRESET_SCENES.map((preset) => {
+                  {PRESET_SCENES.map((preset, presetIdx) => {
                     const isSelected = selectedPreset?.id === preset.id;
                     return (
                       <div
-                        key={preset.id}
+                        key={`story-preset-${preset.id}-${presetIdx}`}
                         id={`story-preset-${preset.id}`}
                         onClick={() => handleSelectPreset(preset)}
                         className={`relative aspect-video rounded-xl overflow-hidden cursor-pointer border-2 transition ${
@@ -764,22 +746,10 @@ export default function CreateStoryModal({ currentUser, onClose, onSubmit }: Cre
 
             {/* Step 4: Caption & Mood Metadata */}
             <div className="space-y-3" id="story-metadata-section">
-              <div className="flex items-center justify-between">
-                <label className="text-xs font-bold text-zinc-300 uppercase tracking-wider flex items-center space-x-1.5">
-                  <Flame className="w-4 h-4 text-amber-400" />
-                  <span>4. Caption & Atmosphere</span>
-                </label>
-                <button
-                  type="button"
-                  id="story-spark-caption-btn"
-                  onClick={handleSparkCaption}
-                  disabled={isSparking}
-                  className="flex items-center space-x-1 px-2.5 py-0.5 rounded-full bg-cyan-950/30 border border-cyan-800/50 hover:bg-cyan-900/40 text-cyan-400 text-[10px] font-semibold transition cursor-pointer"
-                >
-                  <Sparkles className="w-3 h-3 text-cyan-400" />
-                  <span>{isSparking ? 'Sparking...' : 'Spark Story Caption'}</span>
-                </button>
-              </div>
+              <label className="block text-xs font-bold text-zinc-300 uppercase tracking-wider flex items-center space-x-1.5">
+                <Flame className="w-4 h-4 text-amber-400" />
+                <span>4. Caption & Atmosphere</span>
+              </label>
 
               <textarea
                 id="story-caption-textarea"

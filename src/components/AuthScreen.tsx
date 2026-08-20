@@ -506,11 +506,11 @@ export default function AuthScreen({ onAuthSuccess }: AuthScreenProps) {
                     <Camera className="w-4 h-4" />
                   </div>
 
-                  {PRESET_AVATARS.map((av) => {
+                  {PRESET_AVATARS.map((av, avIdx) => {
                     const isSelected = selectedAvatar === av.url && !customAvatar;
                     return (
                       <div
-                        key={av.name}
+                        key={`preset-avatar-${av.name}-${avIdx}`}
                         onClick={() => {
                           setSelectedAvatar(av.url);
                           setCustomAvatar('');

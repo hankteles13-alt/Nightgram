@@ -39,7 +39,7 @@ export interface Story {
 
 export interface Message {
   id: string;
-  sender: 'me' | 'luna' | 'neon_wanderer' | 'night_owl' | string;
+  sender: 'me' | 'teles' | string;
   text: string;
   timestamp: string;
   imageUrl?: string;
@@ -66,6 +66,7 @@ export interface ChatParticipantProfile {
   username: string;
   displayName: string;
   avatar: string;
+  online?: boolean;
 }
 
 export interface ChatRoom {
@@ -87,4 +88,5 @@ export interface UserProfile {
   followers: number;
   following: number;
   stars: number;
+  online?: boolean;
 }

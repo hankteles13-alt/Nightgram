@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Post, UserProfile } from '../types';
+import AnimatedLikeButton from './AnimatedLikeButton';
 import {
   Edit2,
   Grid,
@@ -298,7 +299,7 @@ export default function ProfileSection({
           <div className="text-xs text-zinc-200 font-medium leading-relaxed uppercase tracking-wide mt-1 space-y-0.5">
             {userProfile.bio ? (
               userProfile.bio.split('\n').map((line, idx) => (
-                <p key={idx} className="flex items-center space-x-1 flex-wrap">
+                <p key={`bio-line-${idx}`} className="flex items-center space-x-1 flex-wrap">
                   <span>{line}</span>
                 </p>
               ))
@@ -465,8 +466,8 @@ export default function ProfileSection({
           </button>
 
           {/* Highlights List */}
-          {highlights.map((hl) => (
-            <div key={hl.id} className="flex flex-col items-center flex-shrink-0 space-y-1 group cursor-pointer">
+          {highlights.map((hl, hlIndex) => (
+            <div key={`${hl.id}-${hlIndex}`} className="flex flex-col items-center flex-shrink-0 space-y-1 group cursor-pointer">
               <div className="relative">
                 <div className="w-16 h-16 rounded-full p-[2px] bg-gradient-to-tr from-zinc-800 via-zinc-700 to-zinc-900 group-hover:from-cyan-400 group-hover:to-purple-500 transition duration-300">
                   <img
@@ -581,9 +582,9 @@ export default function ProfileSection({
       {/* 3-COLUMN CONTENT MEDIA GRID */}
       <div className="grid grid-cols-3 gap-1" id="profile-media-grid">
         {displayPosts.length > 0 ? (
-          displayPosts.map((post) => (
+          displayPosts.map((post, postIndex) => (
             <div
-              key={post.id}
+              key={`${post.id}-${postIndex}`}
               onClick={() => setSelectedPost(post)}
               className="relative aspect-square bg-[#0c0c14] overflow-hidden cursor-pointer group"
             >
@@ -648,10 +649,13 @@ export default function ProfileSection({
                 <p className="text-xs text-zinc-300 font-sans">{selectedPost.caption}</p>
 
                 <div className="flex items-center space-x-4 border-t border-zinc-900 pt-3 text-xs">
-                  <div className="flex items-center space-x-1 text-purple-400 font-semibold">
-                    <Heart className="w-4 h-4 fill-purple-400" />
-                    <span>{selectedPost.likes} Stars</span>
-                  </div>
+                  <AnimatedLikeButton
+                    postId={selectedPost.id}
+                    isLiked={!!selectedPost.isLiked}
+                    likesCount={selectedPost.likes}
+                    onLike={onLike}
+                    size="sm"
+                  />
                   <div className="flex items-center space-x-1 text-cyan-400 font-semibold">
                     <MessageCircle className="w-4 h-4" />
                     <span>{selectedPost.comments?.length || 0} Thoughts</span>
