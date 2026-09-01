@@ -40,6 +40,7 @@ function emailApiPlugin(): Plugin {
 
 export default defineConfig(() => {
   return {
+    base: '/Nightgram/',
     plugins: [react(), tailwindcss(), emailApiPlugin()],
     resolve: {
       alias: {
@@ -55,4 +56,3 @@ export default defineConfig(() => {
     },
   };
 });
-
