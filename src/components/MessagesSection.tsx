@@ -72,7 +72,7 @@ import {
   Reply,
   BarChart2,
 } from 'lucide-react';
-import { db } from '../lib/firebase';
+import { db } from '../lib/supabaseFirestore';
 import { optimizeImageForFirestore } from '../lib/imageOptimizer';
 import {
   encryptMessageText,
@@ -92,7 +92,7 @@ import {
   query,
   orderBy,
   where
-} from 'firebase/firestore';
+} from '../lib/supabaseFirestore';
 import { fetchAiCompanionReply, type ChatTurn } from '../lib/aiCompanion';
 
 interface MessagesSectionProps {

@@ -1,16 +1,15 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Moon, LogIn, UserPlus, Info, Check, ExternalLink, ShieldCheck, Mail, KeyRound, RefreshCw, ArrowLeft, Clock, Zap, CheckCircle2, Send } from 'lucide-react';
-import { auth, db } from '../lib/firebase';
+import { auth } from '../lib/supabaseAuth';
+import { db, doc, setDoc, getDoc } from '../lib/supabaseFirestore';
 import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
-  GoogleAuthProvider,
   signInWithPopup,
   signInWithRedirect,
   getRedirectResult
-} from 'firebase/auth';
-import { doc, setDoc, getDoc } from 'firebase/firestore';
+} from '../lib/supabaseAuth';
 import { sendVerificationCodeToEmail, getWebmailUrl } from '../lib/emailService';
 
 interface AuthScreenProps {
@@ -369,10 +368,7 @@ export default function AuthScreen({ onAuthSuccess, pendingTwoFactorUser, onSign
     let isMounted = true;
     const checkRedirect = async () => {
       try {
-        if (auth.authStateReady) {
-          await auth.authStateReady();
-        }
-        const result = await getRedirectResult(auth);
+        const result = await getRedirectResult();
         if (isMounted && result?.user) {
           await handleUserDocCheck(result.user);
         }
@@ -392,9 +388,8 @@ export default function AuthScreen({ onAuthSuccess, pendingTwoFactorUser, onSign
     setError('');
     setPopupBlocked(false);
     setLoading(true);
-    const provider = new GoogleAuthProvider();
     try {
-      const userCredential = await signInWithPopup(auth, provider);
+      const userCredential = await signInWithPopup();
       await handleUserDocCheck(userCredential.user);
     } catch (err: any) {
       const code = err?.code || '';
@@ -406,7 +401,7 @@ export default function AuthScreen({ onAuthSuccess, pendingTwoFactorUser, onSign
         setError('Google Sign-In popup was blocked by browser security in this preview frame. Please log in using Email & Password below, or open the app in a new tab to sign in with Google.');
         if (window.self === window.top) {
           try {
-            await signInWithRedirect(auth, provider);
+            await signInWithRedirect();
           } catch (redirectErr: any) {
             console.warn('Redirect auth notice:', redirectErr);
           }

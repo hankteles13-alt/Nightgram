@@ -42,8 +42,9 @@ import AvatarStatusIndicator from './components/AvatarStatusIndicator';
 import PullToRefresh from './components/PullToRefresh';
 import { AppSettingsModal } from './components/AppSettingsModal';
 import { optimizeImageForFirestore } from './lib/imageOptimizer';
-import { auth, db } from './lib/firebase';
-import { onAuthStateChanged, signOut } from 'firebase/auth';
+import { auth } from './lib/supabaseAuth';
+import { db } from './lib/supabaseFirestore';
+import { onAuthStateChanged, signOut } from './lib/supabaseAuth';
 import {
   collection,
   query,
@@ -59,7 +60,7 @@ import {
   addDoc,
   arrayUnion,
   arrayRemove
-} from 'firebase/firestore';
+} from './lib/supabaseFirestore';
 
 export default function App() {
   // Current logged in user (Firebase profile)
