@@ -1,6 +1,4 @@
-import { auth, db } from './firebase';
-import { sendEmailVerification, User } from 'firebase/auth';
-import { doc, setDoc } from 'firebase/firestore';
+import { db, doc, setDoc } from './supabaseFirestore';
 
 export interface EmailDispatchResult {
   success: boolean;
@@ -13,79 +11,19 @@ export interface EmailDispatchResult {
   expiresAt: string;
 }
 
-/**
- * Returns the webmail URL for common email providers
- */
 export function getWebmailUrl(email: string): { name: string; url: string; searchUrl: string } {
   const clean = (email || '').trim().toLowerCase();
   const domain = clean.split('@')[1] || '';
-
-  if (domain.includes('gmail') || domain.includes('googlemail') || domain === 'google.com') {
-    return {
-      name: 'Gmail',
-      url: 'https://mail.google.com',
-      searchUrl: 'https://mail.google.com/mail/u/0/#search/Nightgram+Verification',
-    };
-  }
-
-  if (domain.includes('outlook') || domain.includes('hotmail') || domain.includes('live') || domain.includes('msn')) {
-    return {
-      name: 'Outlook',
-      url: 'https://outlook.live.com/mail/0/',
-      searchUrl: 'https://outlook.live.com/mail/0/inbox',
-    };
-  }
-
-  if (domain.includes('yahoo') || domain.includes('ymail')) {
-    return {
-      name: 'Yahoo Mail',
-      url: 'https://mail.yahoo.com',
-      searchUrl: 'https://mail.yahoo.com/d/search/keyword=Nightgram',
-    };
-  }
-
-  if (domain.includes('proton') || domain === 'pm.me') {
-    return {
-      name: 'Proton Mail',
-      url: 'https://mail.proton.me',
-      searchUrl: 'https://mail.proton.me/u/0/inbox',
-    };
-  }
-
-  if (domain.includes('icloud') || domain.includes('me.com') || domain.includes('mac.com')) {
-    return {
-      name: 'iCloud Mail',
-      url: 'https://www.icloud.com/mail',
-      searchUrl: 'https://www.icloud.com/mail',
-    };
-  }
-
-  if (domain.includes('zoho')) {
-    return {
-      name: 'Zoho Mail',
-      url: 'https://mail.zoho.com',
-      searchUrl: 'https://mail.zoho.com',
-    };
-  }
-
-  if (domain.includes('aol')) {
-    return {
-      name: 'AOL Mail',
-      url: 'https://mail.aol.com',
-      searchUrl: 'https://mail.aol.com',
-    };
-  }
-
-  return {
-    name: domain ? `${domain.split('.')[0].toUpperCase()} Mail` : 'Webmail',
-    url: `https://${domain || 'mail.google.com'}`,
-    searchUrl: `https://${domain || 'mail.google.com'}`,
-  };
+  if (domain.includes('gmail') || domain.includes('googlemail') || domain === 'google.com') return { name: 'Gmail', url: 'https://mail.google.com', searchUrl: 'https://mail.google.com/mail/u/0/#search/Nightgram+Verification' };
+  if (domain.includes('outlook') || domain.includes('hotmail') || domain.includes('live') || domain.includes('msn')) return { name: 'Outlook', url: 'https://outlook.live.com/mail/0/', searchUrl: 'https://outlook.live.com/mail/0/inbox' };
+  if (domain.includes('yahoo') || domain.includes('ymail')) return { name: 'Yahoo Mail', url: 'https://mail.yahoo.com', searchUrl: 'https://mail.yahoo.com/d/search/keyword=Nightgram' };
+  if (domain.includes('proton') || domain === 'pm.me') return { name: 'Proton Mail', url: 'https://mail.proton.me', searchUrl: 'https://mail.proton.me/u/0/inbox' };
+  if (domain.includes('icloud') || domain.includes('me.com') || domain.includes('mac.com')) return { name: 'iCloud Mail', url: 'https://www.icloud.com/mail', searchUrl: 'https://www.icloud.com/mail' };
+  if (domain.includes('zoho')) return { name: 'Zoho Mail', url: 'https://mail.zoho.com', searchUrl: 'https://mail.zoho.com' };
+  if (domain.includes('aol')) return { name: 'AOL Mail', url: 'https://mail.aol.com', searchUrl: 'https://mail.aol.com' };
+  return { name: domain ? `${domain.split('.')[0].toUpperCase()} Mail` : 'Webmail', url: `https://${domain || 'mail.google.com'}`, searchUrl: `https://${domain || 'mail.google.com'}` };
 }
 
-/**
- * Dispatches a 6-digit verification code to the user's email address
- */
 export async function sendVerificationCodeToEmail(
   targetEmail: string,
   code: string,
@@ -95,20 +33,8 @@ export async function sendVerificationCodeToEmail(
   const provider = getWebmailUrl(cleanEmail);
   const now = new Date();
   const sentAt = now.toISOString();
-  const expiresAt = new Date(now.getTime() + 10 * 60 * 1000).toISOString(); // 10 minutes
+  const expiresAt = new Date(now.getTime() + 10 * 60 * 1000).toISOString();
 
-  // 1. Attempt native Firebase Auth verification if user session exists
-  try {
-    const currentUser = auth.currentUser;
-    if (currentUser && currentUser.email?.toLowerCase() === cleanEmail && !currentUser.emailVerified) {
-      await sendEmailVerification(currentUser);
-      console.log('Firebase Auth verification email dispatched to:', cleanEmail);
-    }
-  } catch (firebaseErr: any) {
-    console.warn('Firebase Auth sendEmailVerification notice:', firebaseErr?.message || firebaseErr);
-  }
-
-  // 2. Dispatch to backend endpoint if available
   try {
     const response = await fetch('/api/send-verification-code', {
       method: 'POST',
@@ -120,30 +46,22 @@ export async function sendVerificationCodeToEmail(
         expiresInMinutes: 10,
       }),
     });
-    if (response.ok) {
-      console.log('Backend mail dispatch succeeded for:', cleanEmail);
-    }
+    if (response.ok) console.log('Backend mail dispatch succeeded for:', cleanEmail);
   } catch (apiErr) {
-    // Non-blocking in dev mode
     console.log('API email route status:', apiErr);
   }
 
-  // 3. Persist verification challenge in Firestore for audit & multi-device sync
   if (userProfile?.uid) {
     try {
-      await setDoc(
-        doc(db, 'users', userProfile.uid),
-        {
-          twoFactorPendingCode: code,
-          twoFactorEmail: cleanEmail,
-          twoFactorRequestedAt: sentAt,
-          twoFactorExpiresAt: expiresAt,
-          lastVerificationStatus: 'dispatched',
-        },
-        { merge: true }
-      );
+      await setDoc(doc(db, 'users', userProfile.uid), {
+        twoFactorPendingCode: code,
+        twoFactorEmail: cleanEmail,
+        twoFactorRequestedAt: sentAt,
+        twoFactorExpiresAt: expiresAt,
+        lastVerificationStatus: 'dispatched',
+      }, { merge: true });
     } catch (dbErr) {
-      console.warn('Firestore code persistence log:', dbErr);
+      console.warn('Supabase verification code persistence:', dbErr);
     }
   }
 
