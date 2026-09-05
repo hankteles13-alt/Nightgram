@@ -1,0 +1,17 @@
+{
+  "name": "Nightgram",
+  "short_name": "Nightgram",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#050505",
+  "theme_color": "#050505",
+  "description": "Nightgram — Midnight Frequency",
+  "icons": [
+    {
+      "src": "/icons/nightgram-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
