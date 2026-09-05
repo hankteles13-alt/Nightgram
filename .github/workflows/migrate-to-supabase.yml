@@ -1,0 +1,142 @@
+name: Migrate Nightgram to Supabase
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: migrate-nightgram-supabase
+  cancel-in-progress: true
+
+jobs:
+  migrate:
+    if: ${{ !contains(github.event.head_commit.message, '[supabase-migrated]') }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Patch Nightgram frontend
+        shell: bash
+        run: |
+          python3 <<'PY'
+          from pathlib import Path
+          import json, re
+          root = Path('.')
+          p = root / 'package.json'
+          pkg = json.loads(p.read_text())
+          pkg['name'] = 'nightgram'
+          pkg['version'] = '1.0.0'
+          deps = pkg.setdefault('dependencies', {})
+          deps.pop('firebase', None)
+          deps['@supabase/supabase-js'] = '^2.57.0'
+          deps.setdefault('@capacitor/core', '^7.4.3')
+          deps.setdefault('@capacitor/android', '^7.4.3')
+          dev = pkg.setdefault('devDependencies', {})
+          dev.setdefault('@capacitor/cli', '^7.4.3')
+          p.write_text(json.dumps(pkg, indent=2) + '\n')
+
+          replacements = {
+              'src/App.tsx': [
+                  ("import { auth, db } from './lib/firebase';", "import { auth } from './lib/supabaseAuth';\nimport { db } from './lib/supabaseFirestore';"),
+                  ("import { onAuthStateChanged, signOut } from 'firebase/auth';", "import { onAuthStateChanged, signOut } from './lib/supabaseAuth';"),
+                  ("} from 'firebase/firestore';", "} from './lib/supabaseFirestore';"),
+              ],
+              'src/components/MessagesSection.tsx': [
+                  ("import { db } from '../lib/firebase';", "import { db } from '../lib/supabaseFirestore';"),
+                  ("} from 'firebase/firestore';", "} from '../lib/supabaseFirestore';"),
+              ],
+          }
+          for name, reps in replacements.items():
+              path = root / name
+              text = path.read_text()
+              for old, new in reps: text = text.replace(old, new)
+              path.write_text(text)
+
+          path = root / 'src/components/AuthScreen.tsx'
+          text = path.read_text()
+          text = text.replace("import { auth, db } from '../lib/firebase';", "import { auth } from '../lib/supabaseAuth';\nimport { db, doc, setDoc, getDoc } from '../lib/supabaseFirestore';")
+          text = re.sub(r"import \{\n  createUserWithEmailAndPassword,\n  signInWithEmailAndPassword,\n  GoogleAuthProvider,\n  signInWithPopup,\n  signInWithRedirect,\n  getRedirectResult\n\} from 'firebase/auth';\nimport \{ doc, setDoc, getDoc \} from 'firebase/firestore';", "import {\n  createUserWithEmailAndPassword,\n  signInWithEmailAndPassword,\n  signInWithPopup,\n  signInWithRedirect,\n  getRedirectResult\n} from '../lib/supabaseAuth';", text)
+          text = text.replace("        if (auth.authStateReady) {\n          await auth.authStateReady();\n        }\n        const result = await getRedirectResult(auth);", "        const result = await getRedirectResult();")
+          text = text.replace("    const provider = new GoogleAuthProvider();\n    try {\n      const userCredential = await signInWithPopup(auth, provider);", "    try {\n      const userCredential = await signInWithPopup();")
+          text = text.replace("            await signInWithRedirect(auth, provider);", "            await signInWithRedirect();")
+          path.write_text(text)
+
+          path = root / 'src/lib/emailService.ts'
+          if path.exists():
+              text = path.read_text()
+              text = text.replace("import { auth, db } from './firebase';", "import { db } from './supabaseFirestore';")
+              text = text.replace("import { sendEmailVerification, User } from 'firebase/auth';\n", '')
+              start = text.find('  // 1. Attempt native Firebase Auth verification if user session exists')
+              marker = text.find('  // 2. Dispatch to backend endpoint if available')
+              if start >= 0 and marker >= 0: text = text[:start] + '  // Verification challenge is persisted in Supabase below.\n\n' + text[marker:]
+              path.write_text(text)
+
+          (root / 'src/lib/aiCompanion.ts').write_text('''import { supabase } from './supabase';\n\nexport interface ChatTurn { role: 'user' | 'assistant'; text: string; }\nexport interface CompanionReply { reply: string; companionId?: string; fallback?: boolean; }\n\nexport async function fetchAiCompanionReply(companionId: string, message: string, history: ChatTurn[] = []): Promise<CompanionReply> {\n  try {\n    const { data, error } = await supabase.functions.invoke('ai-companion-chat', { body: { companionId, message, history } });\n    if (error || !data || typeof data.reply !== 'string') return { reply: 'The signal flickered for a moment. Try sending that again? 🌌', fallback: true };\n    return { reply: data.reply, companionId: data.companionId, fallback: data.fallback };\n  } catch (err) {\n    console.error('AI companion chat fetch error:', err);\n    return { reply: 'A cosmic disruption occurred. The signal will return shortly. 🌌', fallback: true };\n  }\n}\n''')
+          for name in ['src/lib/firebase.ts', 'src/lib/firebaseErrors.ts']:
+              f = root / name
+              if f.exists(): f.unlink()
+          PY
+
+          cat > src/lib/supabase.ts <<'TS'
+          import { createClient } from '@supabase/supabase-js';
+          const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || 'https://difccvkjzsrdszywarqb.supabase.co';
+          const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || 'sb_publishable_tc2FOXTXEZ_h1Q6ilV6tFw_cAhNPbeU';
+          export const supabase = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, { auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true } });
+          TS
+
+          cat > src/lib/supabaseAuth.ts <<'TS'
+          import { supabase } from './supabase';
+          export const auth = supabase.auth;
+          export const onAuthStateChanged = (_auth: typeof supabase.auth, callback: (user: any | null) => void) => { let active=true; supabase.auth.getSession().then(({data})=>{if(active) callback(data.session?.user??null)}); const {data:subscription}=supabase.auth.onAuthStateChange((_event,session)=>{if(active) callback(session?.user??null)}); return ()=>{active=false;subscription.subscription.unsubscribe()}; };
+          export const signOut = async (_auth: typeof supabase.auth) => supabase.auth.signOut();
+          export const createUserWithEmailAndPassword = async (_auth: typeof supabase.auth,email:string,password:string)=>{const {data,error}=await supabase.auth.signUp({email,password});if(error)throw error;if(!data.user)throw new Error('Account creation did not return a user.');return {user:data.user};};
+          export const signInWithEmailAndPassword = async (_auth: typeof supabase.auth,email:string,password:string)=>{const {data,error}=await supabase.auth.signInWithPassword({email,password});if(error)throw error;if(!data.user)throw new Error('Sign-in did not return a user.');return {user:data.user};};
+          export const signInWithPopup = async ()=>{const {data,error}=await supabase.auth.signInWithOAuth({provider:'google',options:{redirectTo:window.location.origin}});if(error)throw error;return {user:null,data};};
+          export const signInWithRedirect = async ()=>{const {error}=await supabase.auth.signInWithOAuth({provider:'google',options:{redirectTo:window.location.origin}});if(error)throw error;};
+          export const getRedirectResult = async ()=>{const {data}=await supabase.auth.getSession();return data.session?.user?{user:data.session.user}:null;};
+          TS
+
+          cat > src/lib/supabaseFirestore.ts <<'TS'
+          import { supabase } from './supabase';
+          type Filter={field:string;op:string;value:any}; type Sort={field:string;direction:'asc'|'desc'}; type CollectionRef={kind:'collection';path:string[];name:string}; type DocRef={kind:'doc';path:string[];id:string;parent:CollectionRef}; type QueryRef={kind:'query';collection:CollectionRef;filters:Filter[];sort?:Sort};
+          export const db={};
+          const collectionName=(path:string[])=>path.length===1?path[0]:`${path[0]}_messages`; const pathString=(path:string[])=>path.join('/');
+          export const collection=(_db:any,...path:string[]):CollectionRef=>({kind:'collection',path,name:collectionName(path)}); export const doc=(_db:any,...path:string[]):DocRef=>({kind:'doc',path,id:path[path.length-1],parent:collection(_db,...path.slice(0,-1))});
+          export const where=(field:string,op:string,value:any):Filter=>({field,op,value}); export const orderBy=(field:string,direction:'asc'|'desc'='asc'):Sort=>({field,direction}); export const query=(ref:CollectionRef,...constraints:Array<Filter|Sort>):QueryRef=>({kind:'query',collection:ref,filters:constraints.filter((c):c is Filter=>'op' in c),sort:constraints.find((c):c is Sort=>'direction' in c)});
+          const makeDoc=(row:any)=>({id:row.id.split('/').pop(),data:()=>row.data||{}}); const matches=(row:any,filters:Filter[])=>filters.every(f=>f.op==='=='?row.data?.[f.field]===f.value:f.op==='array-contains'?Array.isArray(row.data?.[f.field])&&row.data[f.field].includes(f.value):false);
+          const fetchRows=async(q:QueryRef)=>{const {data,error}=await supabase.from('legacy_documents').select('id,data,created_at').eq('collection_name',q.collection.name);if(error)throw error;const prefix=q.collection.path.length>1?q.collection.path.join('/')+'/':'';let rows=(data||[]).filter((row:any)=>(!prefix||row.id.startsWith(prefix))&&matches(row,q.filters));if(q.sort)rows.sort((a:any,b:any)=>{const av=a.data?.[q.sort!.field]??a.created_at??'';const bv=b.data?.[q.sort!.field]??b.created_at??'';const c=String(av).localeCompare(String(bv),undefined,{numeric:true});return q.sort!.direction==='desc'?-c:c});return rows;};
+          const snap=(rows:any[])=>({docs:rows.map(makeDoc),empty:rows.length===0,size:rows.length,forEach:(fn:any)=>rows.map(makeDoc).forEach(fn)});
+          export const getDoc=async(ref:DocRef)=>{const {data,error}=await supabase.from('legacy_documents').select('id,data').eq('id',pathString(ref.path)).maybeSingle();if(error)throw error;return {exists:()=>!!data,id:ref.id,data:()=>data?.data||{}}}; export const getDocs=async(ref:CollectionRef|QueryRef)=>snap(await fetchRows(ref.kind==='query'?ref:query(ref)));
+          const ownerFor=(data:any)=>data?.uid||data?.userId||data?.senderId||(Array.isArray(data?.participants)?data.participants[0]:null)||null;
+          export const setDoc=async(ref:DocRef,data:any,options?:{merge?:boolean})=>{let finalData=data||{};if(options?.merge){const old=await getDoc(ref);finalData={...(old.data()||{}),...data}}const {error}=await supabase.from('legacy_documents').upsert({id:pathString(ref.path),collection_name:ref.parent.name,doc_id:ref.id,parent_path:ref.parent.path.join('/'),owner_id:ownerFor(finalData),data:finalData});if(error)throw error;};
+          const transform=(current:any,updates:any)=>{const next={...current};for(const [key,value] of Object.entries(updates)){if(value&&typeof value==='object'&&(value as any).__arrayOp){const arr=Array.isArray(next[key])?[...next[key]]:[];if((value as any).__arrayOp==='union'){for(const item of (value as any).values)if(!arr.some(x=>JSON.stringify(x)===JSON.stringify(item)))arr.push(item)}else{for(const item of (value as any).values)for(let i=arr.length-1;i>=0;i--)if(JSON.stringify(arr[i])===JSON.stringify(item))arr.splice(i,1)}next[key]=arr}else if(key.includes('.')){const parts=key.split('.');let target=next;for(const part of parts.slice(0,-1))target[part]||={};target[parts.at(-1)!]=value}else next[key]=value}return next};
+          export const updateDoc=async(ref:DocRef,updates:any)=>{const old=await getDoc(ref);if(!old.exists())throw new Error(`Document ${pathString(ref.path)} does not exist`);const data=transform(old.data(),updates);const {error}=await supabase.from('legacy_documents').update({data,owner_id:ownerFor(data)}).eq('id',pathString(ref.path));if(error)throw error;}; export const deleteDoc=async(ref:DocRef)=>{const {error}=await supabase.from('legacy_documents').delete().eq('id',pathString(ref.path));if(error)throw error;}; export const addDoc=async(ref:CollectionRef,data:any)=>{const id=crypto.randomUUID();await setDoc(doc(db,...ref.path,id),data);return doc(db,...ref.path,id);};
+          export const arrayUnion=(...values:any[])=>({__arrayOp:'union',values}); export const arrayRemove=(...values:any[])=>({__arrayOp:'remove',values});
+          export const onSnapshot=(ref:CollectionRef|QueryRef,next:(snapshot:any)=>void,onError?:(error:any)=>void)=>{const q=ref.kind==='query'?ref:query(ref);let active=true;const refresh=async()=>{try{const rows=await fetchRows(q);if(active)await next(snap(rows))}catch(e){if(active&&onError)onError(e)}};void refresh();const channel=supabase.channel(`legacy-${crypto.randomUUID()}`).on('postgres_changes',{event:'*',schema:'public',table:'legacy_documents'},()=>{void refresh()}).subscribe();return ()=>{active=false;void supabase.removeChannel(channel)};};
+          TS
+
+          cat > .env.example <<'ENV'
+          VITE_SUPABASE_URL=https://difccvkjzsrdszywarqb.supabase.co
+          VITE_SUPABASE_PUBLISHABLE_KEY=sb_publishable_tc2FOXTXEZ_h1Q6ilV6tFw_cAhNPbeU
+          ENV
+
+      - name: Install and build
+        run: |
+          npm install --no-audit --no-fund
+          npm run build
+          rm -f package-lock.json
+
+      - name: Commit migration
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "Connect Nightgram frontend to Supabase [supabase-migrated]" || exit 0
+          git push origin main
