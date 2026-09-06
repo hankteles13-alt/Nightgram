@@ -1,3 +1,4 @@
+import { supabase } from './supabase';
 import { db, doc, setDoc } from './supabaseFirestore';
 
 export interface EmailDispatchResult {
@@ -35,29 +36,31 @@ export async function sendVerificationCodeToEmail(
   const sentAt = now.toISOString();
   const expiresAt = new Date(now.getTime() + 10 * 60 * 1000).toISOString();
 
-  try {
-    const response = await fetch('/api/send-verification-code', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        email: cleanEmail,
-        code,
-        displayName: userProfile?.displayName || userProfile?.username || 'Nightgram Dreamer',
-        expiresInMinutes: 10,
-      }),
-    });
-    if (response.ok) console.log('Backend mail dispatch succeeded for:', cleanEmail);
-  } catch (apiErr) {
-    console.log('API email route status:', apiErr);
+  const { data, error } = await supabase.functions.invoke('send-2fa-code', {
+    body: {
+      email: cleanEmail,
+      code,
+      displayName: userProfile?.displayName || userProfile?.username || 'Nightgram Dreamer',
+      expiresInMinutes: 10,
+    },
+  });
+
+  if (error) {
+    throw new Error(error.message || 'Could not send the verification email.');
+  }
+  if (!data?.success) {
+    throw new Error(data?.error || 'Could not send the verification email.');
   }
 
+  // Keep the existing client-side profile state in sync with the 2FA UI.
+  // The actual email is now sent by the authenticated Supabase Edge Function.
   if (userProfile?.uid) {
     try {
       await setDoc(doc(db, 'users', userProfile.uid), {
         twoFactorPendingCode: code,
         twoFactorEmail: cleanEmail,
-        twoFactorRequestedAt: sentAt,
-        twoFactorExpiresAt: expiresAt,
+        twoFactorRequestedAt: data.sentAt || sentAt,
+        twoFactorExpiresAt: data.expiresAt || expiresAt,
         lastVerificationStatus: 'dispatched',
       }, { merge: true });
     } catch (dbErr) {
@@ -72,7 +75,7 @@ export async function sendVerificationCodeToEmail(
     targetEmail: cleanEmail,
     providerName: provider.name,
     webmailUrl: provider.searchUrl,
-    sentAt,
-    expiresAt,
+    sentAt: data.sentAt || sentAt,
+    expiresAt: data.expiresAt || expiresAt,
   };
 }
