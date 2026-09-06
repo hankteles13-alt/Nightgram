@@ -2,10 +2,7 @@ import { supabase } from './supabase';
 
 export const auth = supabase.auth;
 
-export const onAuthStateChanged = (
-  _auth: typeof supabase.auth,
-  callback: (user: any | null) => void
-) => {
+export const onAuthStateChanged = (_auth: typeof supabase.auth, callback: (user: any | null) => void) => {
   let active = true;
   supabase.auth.getSession().then(({ data }) => {
     if (active) callback(data.session?.user ?? null);
@@ -21,22 +18,14 @@ export const onAuthStateChanged = (
 
 export const signOut = async (_auth: typeof supabase.auth) => supabase.auth.signOut();
 
-export const createUserWithEmailAndPassword = async (
-  _auth: typeof supabase.auth,
-  email: string,
-  password: string
-) => {
+export const createUserWithEmailAndPassword = async (_auth: typeof supabase.auth, email: string, password: string) => {
   const { data, error } = await supabase.auth.signUp({ email, password });
   if (error) throw error;
   if (!data.user) throw new Error('Account creation did not return a user.');
   return { user: data.user };
 };
 
-export const signInWithEmailAndPassword = async (
-  _auth: typeof supabase.auth,
-  email: string,
-  password: string
-) => {
+export const signInWithEmailAndPassword = async (_auth: typeof supabase.auth, email: string, password: string) => {
   const { data, error } = await supabase.auth.signInWithPassword({ email, password });
   if (error) throw error;
   if (!data.user) throw new Error('Sign-in did not return a user.');
