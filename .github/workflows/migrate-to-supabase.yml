@@ -22,6 +22,13 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Recover accidental placeholder
+        shell: bash
+        run: |
+          if [ "$(cat src/components/AuthScreen.tsx)" = "PLACEHOLDER" ]; then
+            git show HEAD^:src/components/AuthScreen.tsx > src/components/AuthScreen.tsx
+          fi
+
       - name: Patch Nightgram frontend
         shell: bash
         run: |
