@@ -1,5 +1,4 @@
 import { supabase } from './supabase';
-import { db, doc, setDoc } from './supabaseFirestore';
 
 export interface EmailDispatchResult {
   success: boolean;
@@ -38,6 +37,7 @@ export async function sendVerificationCodeToEmail(
 
   const { data, error } = await supabase.functions.invoke('send-2fa-code', {
     body: {
+      action: 'send',
       email: cleanEmail,
       code,
       displayName: userProfile?.displayName || userProfile?.username || 'Nightgram Dreamer',
@@ -45,28 +45,8 @@ export async function sendVerificationCodeToEmail(
     },
   });
 
-  if (error) {
-    throw new Error(error.message || 'Could not send the verification email.');
-  }
-  if (!data?.success) {
-    throw new Error(data?.error || 'Could not send the verification email.');
-  }
-
-  // Keep the existing client-side profile state in sync with the 2FA UI.
-  // The actual email is now sent by the authenticated Supabase Edge Function.
-  if (userProfile?.uid) {
-    try {
-      await setDoc(doc(db, 'users', userProfile.uid), {
-        twoFactorPendingCode: code,
-        twoFactorEmail: cleanEmail,
-        twoFactorRequestedAt: data.sentAt || sentAt,
-        twoFactorExpiresAt: data.expiresAt || expiresAt,
-        lastVerificationStatus: 'dispatched',
-      }, { merge: true });
-    } catch (dbErr) {
-      console.warn('Supabase verification code persistence:', dbErr);
-    }
-  }
+  if (error) throw new Error(error.message || 'Could not send the verification email.');
+  if (!data?.success) throw new Error(data?.error || 'Could not send the verification email.');
 
   return {
     success: true,
@@ -78,4 +58,15 @@ export async function sendVerificationCodeToEmail(
     sentAt: data.sentAt || sentAt,
     expiresAt: data.expiresAt || expiresAt,
   };
+}
+
+export async function verifyVerificationCode(targetEmail: string, code: string) {
+  const cleanEmail = targetEmail.trim().toLowerCase();
+  const { data, error } = await supabase.functions.invoke('send-2fa-code', {
+    body: { action: 'verify', email: cleanEmail, code: code.trim() },
+  });
+
+  if (error) throw new Error(error.message || 'Could not verify the security code.');
+  if (!data?.success) throw new Error(data?.error || 'Invalid verification code.');
+  return data as { success: true; verifiedAt: string };
 }
