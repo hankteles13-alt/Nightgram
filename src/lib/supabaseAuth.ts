@@ -32,10 +32,9 @@ export const signInWithEmailAndPassword = async (_auth: typeof supabase.auth, em
   return { user: data.user };
 };
 
-const getOAuthRedirect = () =>
-  window.location.hostname.endsWith('github.io')
-    ? `${window.location.origin}/Nightgram/`
-    : `${window.location.origin}/`;
+const getOAuthRedirect = () => window.location.hostname.endsWith('github.io')
+  ? `${window.location.origin}/Nightgram/`
+  : `${window.location.origin}/`;
 
 export const signInWithPopup = async () => {
   const { error } = await supabase.auth.signInWithOAuth({
