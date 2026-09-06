@@ -57,7 +57,6 @@ export const signInWithPopup = async () => {
     options: { redirectTo: getOAuthRedirect() },
   });
   if (error) throw error;
-  // OAuth navigation starts here; there is no user object to return yet.
   await new Promise<never>(() => {});
 };
 
