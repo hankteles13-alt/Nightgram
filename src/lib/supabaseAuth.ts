@@ -7,15 +7,12 @@ export const onAuthStateChanged = (
   callback: (user: any | null) => void
 ) => {
   let active = true;
-
   supabase.auth.getSession().then(({ data }) => {
     if (active) callback(data.session?.user ?? null);
   });
-
   const { data: subscription } = supabase.auth.onAuthStateChange((_event, session) => {
     if (active) callback(session?.user ?? null);
   });
-
   return () => {
     active = false;
     subscription.subscription.unsubscribe();
