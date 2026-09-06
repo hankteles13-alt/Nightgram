@@ -26,7 +26,7 @@ export function getWebmailUrl(email: string): { name: string; url: string; searc
 
 export async function sendVerificationCodeToEmail(
   targetEmail: string,
-  code: string,
+  _code?: string,
   userProfile?: { uid?: string; displayName?: string; username?: string }
 ): Promise<EmailDispatchResult> {
   const cleanEmail = targetEmail.trim().toLowerCase();
@@ -39,7 +39,6 @@ export async function sendVerificationCodeToEmail(
     body: {
       action: 'send',
       email: cleanEmail,
-      code,
       displayName: userProfile?.displayName || userProfile?.username || 'Nightgram Dreamer',
       expiresInMinutes: 10,
     },
@@ -51,7 +50,7 @@ export async function sendVerificationCodeToEmail(
   return {
     success: true,
     message: `Verification code successfully sent to ${cleanEmail}`,
-    code,
+    code: '',
     targetEmail: cleanEmail,
     providerName: provider.name,
     webmailUrl: provider.searchUrl,
