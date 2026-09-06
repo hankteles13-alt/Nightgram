@@ -3,13 +3,13 @@ on:
   push:
     branches: [main]
     paths:
-      - '.github/workflows/harden-2fa.yml'
       - 'src/components/AuthScreen.tsx'
       - 'src/lib/emailService.ts'
 permissions:
   contents: write
 jobs:
   harden:
+    if: github.event.head_commit.message != 'Verify 2FA codes on server'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -24,7 +24,9 @@ jobs:
           s = s.replace("  const [twoFactorCode, setTwoFactorCode] = useState('');\n", "")
           s = s.replace("  const [showCodePeek, setShowCodePeek] = useState(false);\n", "")
           s = s.replace("  const [notificationToast, setNotificationToast] = useState<{ show: boolean; code: string; email: string } | null>(null);", "  const [notificationToast, setNotificationToast] = useState<{ show: boolean; email: string } | null>(null);\n  const [otpVerifying, setOtpVerifying] = useState(false);")
-          s = re.sub(r"  // Helper to generate and initiate 2FA verification challenge and dispatch to email\n  const initiateTwoFactorVerification = async .*?\n  };\n\n  // If component loaded", '''  // Start a server-generated 2FA verification challenge and dispatch it to email.
+          start = s.index('  // Helper to generate and initiate 2FA verification challenge and dispatch to email')
+          end = s.index('  // Timers for expiration and resend cooldown', start)
+          replacement = '''  // Start a server-generated 2FA challenge and dispatch it to email.
   const initiateTwoFactorVerification = async (profileData: any, userEmail: string) => {
     const cleanTargetEmail = (userEmail || profileData?.email || email || '').trim().toLowerCase();
     setPendingProfile(profileData);
@@ -42,7 +44,9 @@ jobs:
     try {
       const dispatchResult = await sendVerificationCodeToEmail(cleanTargetEmail, undefined, profileData);
       setEmailSentTimestamp(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
-      if (dispatchResult.providerName) setWebmailData({ name: dispatchResult.providerName, url: dispatchResult.webmailUrl, searchUrl: dispatchResult.webmailUrl });
+      if (dispatchResult.providerName) {
+        setWebmailData({ name: dispatchResult.providerName, url: dispatchResult.webmailUrl, searchUrl: dispatchResult.webmailUrl });
+      }
     } catch (sendErr: any) {
       console.warn('Verification email dispatch issue handled:', sendErr);
       setOtpError(sendErr?.message || 'Could not send the verification email. Please try again.');
@@ -51,10 +55,18 @@ jobs:
     }
   };
 
-  // If component loaded''', s, count=1, flags=re.S)
-          s = s.replace("if (pendingTwoFactorUser && !twoFactorCode)", "if (pendingTwoFactorUser && !emailSentTimestamp)")
-          s = re.sub(r"  // Handle Quick Fill helper for immediate verification\n  const handleQuickFill = \(\) => \{.*?\n  \};\n\n", "", s, count=1, flags=re.S)
-          s = re.sub(r"  // Verify OTP submission\n  const handleVerifyOtp = \(codeToCheck\?: string\) => \{.*?\n  \};\n\n  // Resend code handler", '''  // Verify OTP on the authenticated Supabase Edge Function.
+  // If component loaded with pendingTwoFactorUser, auto-initiate 2FA challenge.
+  useEffect(() => {
+    if (pendingTwoFactorUser && !emailSentTimestamp) {
+      initiateTwoFactorVerification(pendingTwoFactorUser, pendingTwoFactorUser.email || email || '');
+    }
+  }, [pendingTwoFactorUser]);
+
+'''
+          s = s[:start] + replacement + s[end:]
+          start = s.index('  // Handle Quick Fill helper for immediate verification')
+          end = s.index('  // Cancel 2FA and return to login / signout', start)
+          replacement = '''  // Verify the submitted code on the authenticated server.
   const handleVerifyOtp = async (codeToCheck?: string) => {
     const code = (codeToCheck || otpDigits.join('')).trim();
     if (!/^\\d{6}$/.test(code)) { setOtpError('Please enter all 6 digits of the code.'); return; }
@@ -74,8 +86,7 @@ jobs:
     }
   };
 
-  // Resend code handler''', s, count=1, flags=re.S)
-          s = re.sub(r"  // Resend code handler\n  const handleResendCode = async \(\) => \{.*?\n  \};\n\n  // Cancel 2FA", '''  // Resend code handler
+  // Resend code handler.
   const handleResendCode = async () => {
     if (resendCooldown > 0 || emailSending || otpSuccess) return;
     setOtpDigits(['', '', '', '', '', '']);
@@ -87,7 +98,9 @@ jobs:
       const dispatchResult = await sendVerificationCodeToEmail(twoFactorEmail, undefined, pendingProfile);
       setEmailSentTimestamp(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
       setNotificationToast({ show: true, email: twoFactorEmail });
-      if (dispatchResult.providerName) setWebmailData({ name: dispatchResult.providerName, url: dispatchResult.webmailUrl, searchUrl: dispatchResult.webmailUrl });
+      if (dispatchResult.providerName) {
+        setWebmailData({ name: dispatchResult.providerName, url: dispatchResult.webmailUrl, searchUrl: dispatchResult.webmailUrl });
+      }
     } catch (err: any) {
       console.warn('Resend 2FA email notice:', err);
       setOtpError(err?.message || 'Could not resend the verification email.');
@@ -97,29 +110,32 @@ jobs:
     otpInputRefs[0]?.current?.focus();
   };
 
-  // Cancel 2FA''', s, count=1, flags=re.S)
+'''
+          s = s[:start] + replacement + s[end:]
           s = s.replace("    setTwoFactorCode('');\n", "")
-          s = re.sub(r"\n            /\*\*? Sandbox Testing Backup Toggle \*\*?\*/.*?\n            </div>\n\n            /\*\*? Back / Switch Account", "\n            {/* Back / Switch Account", s, count=1, flags=re.S)
-          s = s.replace("onClick={handleQuickFill}", "onClick={() => {}}")
+          # Remove the development-only code preview/quick-fill block.
+          s = re.sub(r'\n\s*\{\/\* Sandbox Testing Backup Toggle \*\/\}.*?(?=\n\s*\{\/\* Back / Switch Account)', '', s, flags=re.S)
           s = s.replace("disabled={otpSuccess || otpDigits.join('').length < 6}", "disabled={otpSuccess || otpVerifying || otpDigits.join('').length < 6}")
           s = s.replace("<span>Verify Email & Enter Nightgram</span>", "<span>{otpVerifying ? 'Verifying...' : 'Verify Email & Enter Nightgram'}</span>")
-          s = re.sub(r"\n\s*\{showCodePeek && \(.*?\n\s*\)\}", "", s, count=1, flags=re.S)
-          s = re.sub(r"\n\s*<button\n\s*type=\"button\"\n\s*onClick=\{\(\) => setShowCodePeek\(!showCodePeek\)\}.*?</button>", "", s, count=1, flags=re.S)
+          # Ensure no client-side secret/code remains.
+          assert 'twoFactorCode' not in s
+          assert 'showCodePeek' not in s
+          assert 'handleQuickFill' not in s
+          assert 'verifyVerificationCode' in s
           p.write_text(s)
-      - name: Validate
+      - name: Validate build
         run: |
           npm ci --no-audit --no-fund
           npm run build
-      - name: Commit hardened client
+      - name: Commit hardened client and remove temporary workflow
         shell: bash
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add src/components/AuthScreen.tsx
-          git diff --cached --quiet && exit 0
-          git commit -m "Verify 2FA codes on server"
+          git diff --cached --quiet || git commit -m "Verify 2FA codes on server"
           git push
           rm -f .github/workflows/harden-2fa.yml
           git add .github/workflows/harden-2fa.yml
-          git commit -m "Remove temporary 2FA hardening workflow"
+          git diff --cached --quiet || git commit -m "Remove temporary 2FA hardening workflow"
           git push
