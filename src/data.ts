@@ -5,8 +5,18 @@ export const CURRENT_USER: UserProfile = {
   displayName: 'Ray Mitchell',
   avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
   bio: 'Chasing neon signs, wet asphalt reflections, and late night espresso ☕✨ | Developer by day, Nightgrammer by night 🌌',
-  followers: 432,
-  following: 189,
+  followers: 7,
+  following: 3,
+  followersList: [
+    'synth_fox',
+    'nocturnal_rider',
+    'tokyo_drift',
+    'beat_maker',
+    'luna_vibes',
+    'coffee_at_3am',
+    'cyber_wanderer',
+  ],
+  followingList: ['nocturnal_rider', 'tokyo_drift', 'coffee_at_3am'],
   stars: 1240,
 };
 

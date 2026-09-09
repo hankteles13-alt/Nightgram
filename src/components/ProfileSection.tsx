@@ -24,9 +24,11 @@ import {
   Music,
   AtSign,
   Activity,
-  Volume2
+  Volume2,
+  Maximize2
 } from 'lucide-react';
 import NocturnalRhythmChart from './NocturnalRhythmChart';
+import FollowersListModal from './FollowersListModal';
 import { doc, getDoc, db } from '../lib/supabaseFirestore';
 
 interface ProfileSectionProps {
@@ -35,6 +37,12 @@ interface ProfileSectionProps {
   posts: Post[];
   onLike: (postId: string) => void;
   onSignOut?: () => void;
+  onOpenChatWithUser?: (user: { uid?: string; username: string; displayName?: string; avatar?: string }) => void;
+  onOpenUserProfile?: (user: any) => void;
+  onToggleFollowUser?: (targetUser: any, isFollowing: boolean) => void;
+  onRemoveFollower?: (username: string) => void;
+  followingList?: string[];
+  followersList?: string[];
 }
 
 interface StoryHighlight {
@@ -42,6 +50,17 @@ interface StoryHighlight {
   title: string;
   coverImage: string;
 }
+
+const DEFAULT_COMMUNITY_FOLLOWER_USERNAMES = [
+  'synth_fox',
+  'nocturnal_rider',
+  'tokyo_drift',
+  'beat_maker',
+  'luna_vibes',
+  'coffee_at_3am',
+  'cyber_wanderer',
+];
+const DEFAULT_COMMUNITY_FOLLOWING_USERNAMES = ['nocturnal_rider', 'tokyo_drift', 'coffee_at_3am'];
 
 const DEFAULT_HIGHLIGHTS: StoryHighlight[] = [];
 
@@ -51,10 +70,46 @@ export default function ProfileSection({
   posts,
   onLike,
   onSignOut,
+  onOpenChatWithUser,
+  onOpenUserProfile,
+  onToggleFollowUser,
+  onRemoveFollower,
+  followingList,
+  followersList,
 }: ProfileSectionProps) {
   const [activeTab, setActiveTab] = useState<'posts' | 'reels' | 'reposts' | 'saved'>('posts');
   const [isEditing, setIsEditing] = useState(false);
   const [showRhythmChart, setShowRhythmChart] = useState(false);
+  const [showFollowersModal, setShowFollowersModal] = useState(false);
+  const [followersModalTab, setFollowersModalTab] = useState<'followers' | 'following'>('followers');
+  const [showFullscreenAvatar, setShowFullscreenAvatar] = useState(false);
+
+  // Keyboard shortcut (Escape) to exit fullscreen avatar view
+  useEffect(() => {
+    if (!showFullscreenAvatar) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setShowFullscreenAvatar(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [showFullscreenAvatar]);
+
+  // Exact counts strictly representing the users they stand for
+  const effectiveFollowers = followersList ?? userProfile.followersList ?? DEFAULT_COMMUNITY_FOLLOWER_USERNAMES;
+  const effectiveFollowing = followingList ?? userProfile.followingList ?? DEFAULT_COMMUNITY_FOLLOWING_USERNAMES;
+
+  const [liveFollowersCount, setLiveFollowersCount] = useState<number>(effectiveFollowers.length);
+  const [liveFollowingCount, setLiveFollowingCount] = useState<number>(effectiveFollowing.length);
+
+  useEffect(() => {
+    setLiveFollowersCount(effectiveFollowers.length);
+  }, [effectiveFollowers.length]);
+
+  useEffect(() => {
+    setLiveFollowingCount(effectiveFollowing.length);
+  }, [effectiveFollowing.length]);
   const [editName, setEditName] = useState(userProfile.displayName || '');
   const [editUsername, setEditUsername] = useState(userProfile.username || '');
   const [usernameError, setUsernameError] = useState('');
@@ -139,6 +194,7 @@ export default function ProfileSection({
       img.src = event.target?.result as string;
     };
     reader.readAsDataURL(file);
+    e.target.value = '';
   };
 
   const handleSaveProfile = async (e: React.FormEvent) => {
@@ -255,27 +311,34 @@ export default function ProfileSection({
 
           {/* Main Circular Image */}
           <div
-            onClick={() => fileInputRef.current?.click()}
-            className="w-22 h-22 sm:w-24 sm:h-24 rounded-full p-[2px] bg-gradient-to-tr from-cyan-400 via-purple-500 to-indigo-500 shadow-[0_0_18px_rgba(6,182,212,0.3)] hover:scale-102 transition duration-300 relative overflow-hidden"
-            title="Click to choose profile picture from device storage"
+            id="profile-avatar-click-zone"
+            onClick={() => setShowFullscreenAvatar(true)}
+            className="w-22 h-22 sm:w-24 sm:h-24 rounded-full p-[2px] bg-gradient-to-tr from-cyan-400 via-purple-500 to-indigo-500 shadow-[0_0_18px_rgba(6,182,212,0.3)] hover:scale-105 active:scale-95 transition duration-300 relative overflow-hidden cursor-pointer select-none"
+            title="Click image to view full screen"
           >
             <img
+              id="profile-avatar-display-img"
               src={userProfile.avatar}
               alt={userProfile.username}
-              className="w-full h-full object-cover rounded-full border-2 border-[#0a0a0f]"
+              className="w-full h-full object-cover rounded-full border-2 border-[#0a0a0f] transition group-hover:brightness-105"
               referrerPolicy="no-referrer"
             />
-            <div className="absolute inset-0 bg-black/50 rounded-full flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition">
-              <Camera className="w-5 h-5 text-cyan-300" />
+            <div className="absolute inset-0 bg-black/45 rounded-full flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition backdrop-blur-[1px]">
+              <Maximize2 className="w-5 h-5 text-cyan-300 drop-shadow-md" />
+              <span className="text-[9px] font-semibold text-zinc-200 mt-0.5 tracking-wide uppercase">View</span>
             </div>
           </div>
 
           {/* Bottom Right '+' Badge */}
           <button
             type="button"
-            onClick={() => fileInputRef.current?.click()}
-            className="absolute bottom-0 right-0 z-10 w-6.5 h-6.5 rounded-full bg-cyan-400 hover:bg-cyan-300 text-black flex items-center justify-center font-bold shadow-md cursor-pointer border-2 border-[#0a0a0f] transition active:scale-95"
-            title="Upload photo from device"
+            id="profile-avatar-plus-btn"
+            onClick={(e) => {
+              e.stopPropagation();
+              fileInputRef.current?.click();
+            }}
+            className="absolute bottom-0 right-0 z-10 w-7 h-7 rounded-full bg-cyan-400 hover:bg-cyan-300 text-black flex items-center justify-center font-bold shadow-[0_0_12px_rgba(6,182,212,0.5)] cursor-pointer border-2 border-[#0a0a0f] transition-all hover:scale-110 active:scale-95"
+            title="Click to change profile picture"
           >
             <Plus className="w-4 h-4 stroke-[3]" />
           </button>
@@ -290,18 +353,44 @@ export default function ProfileSection({
             <span className="text-xs text-zinc-400 font-medium font-sans">posts</span>
           </div>
 
-          <div className="flex flex-col items-center">
-            <span className="text-base sm:text-lg font-bold text-white font-mono">
-              {userProfile.followers || 365}
+          <div
+            id="profile-stat-followers-btn"
+            onClick={() => {
+              setFollowersModalTab('followers');
+              setShowFollowersModal(true);
+            }}
+            className="flex flex-col items-center cursor-pointer group hover:opacity-85 active:scale-95 transition-all select-none p-1 rounded-lg hover:bg-zinc-900/40"
+            title="Click to view followers"
+          >
+            <span
+              id="profile-followers-count-num"
+              className="text-base sm:text-lg font-bold text-white font-mono group-hover:text-cyan-300 transition-colors tracking-tight drop-shadow-[0_0_8px_rgba(6,182,212,0.25)]"
+            >
+              {liveFollowersCount}
             </span>
-            <span className="text-xs text-zinc-400 font-medium font-sans">followers</span>
+            <span className="text-xs text-zinc-400 group-hover:text-cyan-400 font-medium font-sans flex items-center gap-0.5">
+              followers
+            </span>
           </div>
 
-          <div className="flex flex-col items-center">
-            <span className="text-base sm:text-lg font-bold text-white font-mono">
-              {userProfile.following || 28}
+          <div
+            id="profile-stat-following-btn"
+            onClick={() => {
+              setFollowersModalTab('following');
+              setShowFollowersModal(true);
+            }}
+            className="flex flex-col items-center cursor-pointer group hover:opacity-85 active:scale-95 transition-all select-none p-1 rounded-lg hover:bg-zinc-900/40"
+            title="Click to view following"
+          >
+            <span
+              id="profile-following-count-num"
+              className="text-base sm:text-lg font-bold text-white font-mono group-hover:text-purple-300 transition-colors tracking-tight drop-shadow-[0_0_8px_rgba(168,85,247,0.25)]"
+            >
+              {liveFollowingCount}
             </span>
-            <span className="text-xs text-zinc-400 font-medium font-sans">following</span>
+            <span className="text-xs text-zinc-400 group-hover:text-purple-400 font-medium font-sans flex items-center gap-0.5">
+              following
+            </span>
           </div>
         </div>
       </div>
@@ -706,6 +795,121 @@ export default function ProfileSection({
               </div>
             </motion.div>
           </div>
+        )}
+      </AnimatePresence>
+
+      {/* Followers & Following List Modal */}
+      <FollowersListModal
+        isOpen={showFollowersModal}
+        initialTab={followersModalTab}
+        userProfile={userProfile}
+        currentUser={userProfile}
+        onClose={() => setShowFollowersModal(false)}
+        onOpenChatWithUser={onOpenChatWithUser}
+        onSelectUser={onOpenUserProfile}
+        onToggleFollowUser={onToggleFollowUser}
+        onRemoveFollower={(username) => {
+          if (onRemoveFollower) onRemoveFollower(username);
+          setLiveFollowersCount((prev) => Math.max(0, prev - 1));
+        }}
+        followingList={followingList}
+        onCountsChange={(counts) => {
+          setLiveFollowersCount(counts.followers);
+          setLiveFollowingCount(counts.following);
+        }}
+      />
+
+      {/* Fullscreen Avatar Modal - Covers the whole screen */}
+      <AnimatePresence>
+        {showFullscreenAvatar && (
+          <motion.div
+            id="fullscreen-avatar-modal"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            onClick={() => setShowFullscreenAvatar(false)}
+            className="fixed inset-0 z-[100] bg-black/95 backdrop-blur-xl flex flex-col items-center justify-between p-4 sm:p-6 cursor-zoom-out select-none"
+          >
+            {/* Top Bar */}
+            <div
+              className="w-full max-w-2xl flex items-center justify-between pt-2 px-2 z-10"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center space-x-3">
+                <div className="w-10 h-10 rounded-full overflow-hidden border border-zinc-700/80 shadow-md">
+                  <img
+                    src={userProfile.avatar}
+                    alt={userProfile.username}
+                    className="w-full h-full object-cover"
+                    referrerPolicy="no-referrer"
+                  />
+                </div>
+                <div>
+                  <h3 className="text-sm sm:text-base font-bold text-white leading-tight">
+                    {userProfile.displayName || userProfile.username}
+                  </h3>
+                  <p className="text-xs text-zinc-400">@{userProfile.username}</p>
+                </div>
+              </div>
+
+              <div className="flex items-center space-x-2">
+                <button
+                  type="button"
+                  id="fullscreen-change-avatar-btn"
+                  onClick={() => {
+                    fileInputRef.current?.click();
+                  }}
+                  className="px-3.5 py-1.5 rounded-full bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 hover:text-cyan-200 text-xs font-semibold flex items-center gap-1.5 transition border border-cyan-500/40 cursor-pointer active:scale-95 shadow-[0_0_12px_rgba(6,182,212,0.25)]"
+                  title="Upload new picture from device"
+                >
+                  <Camera className="w-3.5 h-3.5" />
+                  <span>Change Picture</span>
+                </button>
+
+                <button
+                  type="button"
+                  id="fullscreen-avatar-close-btn"
+                  onClick={() => setShowFullscreenAvatar(false)}
+                  className="p-2 rounded-full bg-zinc-900/80 hover:bg-zinc-800 text-zinc-400 hover:text-white transition border border-zinc-800 cursor-pointer active:scale-95"
+                  title="Close (Esc)"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+
+            {/* Centered Large Image covering the whole screen view */}
+            <div
+              className="flex-1 w-full max-w-4xl flex items-center justify-center p-2 sm:p-4 my-auto cursor-default"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <motion.div
+                initial={{ scale: 0.85, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.85, opacity: 0 }}
+                transition={{ type: 'spring', damping: 26, stiffness: 320 }}
+                className="relative max-w-full max-h-[78vh] sm:max-h-[82vh] flex items-center justify-center rounded-3xl overflow-hidden shadow-[0_0_60px_rgba(0,0,0,0.95)] border border-zinc-800/80 bg-zinc-950/60"
+              >
+                <img
+                  id="fullscreen-avatar-view-img"
+                  src={userProfile.avatar}
+                  alt={userProfile.username}
+                  className="max-w-full max-h-[76vh] sm:max-h-[80vh] w-auto h-auto object-contain select-none"
+                  referrerPolicy="no-referrer"
+                />
+              </motion.div>
+            </div>
+
+            {/* Bottom Hint */}
+            <div
+              className="text-xs text-zinc-400/80 pb-2 flex items-center gap-3 z-10"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <span className="hidden sm:inline">Tap backdrop or press <kbd className="px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-300 font-mono text-[10px]">Esc</kbd> to close</span>
+              <span className="sm:hidden">Tap outside to close</span>
+            </div>
+          </motion.div>
         )}
       </AnimatePresence>
     </div>

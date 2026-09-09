@@ -104,4 +104,6 @@ export interface UserProfile {
   stars: number;
   online?: boolean;
   settings?: any;
+  followersList?: string[];
+  followingList?: string[];
 }

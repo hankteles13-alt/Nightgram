@@ -35,7 +35,7 @@ import CreateShortModal from './components/CreateShortModal';
 import CreatorChoiceSheet from './components/CreatorChoiceSheet';
 import MessagesSection from './components/MessagesSection';
 import ProfileSection from './components/ProfileSection';
-import { ReelsSection, ShortVideo } from './components/ReelsSection';
+import { ReelsSection, ShortVideo, DEFAULT_SHORTS } from './components/ReelsSection';
 import WelcomeCoverScreen from './components/WelcomeCoverScreen';
 import AuthScreen from './components/AuthScreen';
 import AvatarStatusIndicator from './components/AvatarStatusIndicator';
@@ -103,9 +103,10 @@ export default function App() {
   const [shorts, setShorts] = useState<ShortVideo[]>(() => {
     try {
       const saved = localStorage.getItem('nightgram_shorts');
-      return saved ? JSON.parse(saved) : [];
+      const parsed = saved ? JSON.parse(saved) : [];
+      return parsed && parsed.length > 0 ? parsed : DEFAULT_SHORTS;
     } catch {
-      return [];
+      return DEFAULT_SHORTS;
     }
   });
   const [showNotifications, setShowNotifications] = useState(false);
@@ -187,6 +188,17 @@ export default function App() {
             setCurrentUser(userDoc.data());
           } else {
             // Create user profile document if it doesn't exist
+            const defaultCommunityFollowers = [
+              'synth_fox',
+              'nocturnal_rider',
+              'tokyo_drift',
+              'beat_maker',
+              'luna_vibes',
+              'coffee_at_3am',
+              'cyber_wanderer',
+            ];
+            const defaultCommunityFollowing = ['nocturnal_rider', 'tokyo_drift', 'coffee_at_3am'];
+
             const fallbackProfile = {
               uid: firebaseUser.uid,
               email: firebaseUser.email || '',
@@ -196,8 +208,10 @@ export default function App() {
               displayName: firebaseUser.displayName || 'A Midnight Dreamer',
               avatar: firebaseUser.photoURL || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
               bio: 'Chasing midnight dreams.',
-              followers: 0,
-              following: 0,
+              followers: defaultCommunityFollowers.length,
+              following: defaultCommunityFollowing.length,
+              followersList: defaultCommunityFollowers,
+              followingList: defaultCommunityFollowing,
               stars: 0,
               createdAt: new Date().toISOString(),
             };
@@ -206,6 +220,17 @@ export default function App() {
           }
         } catch (err) {
           console.warn('Auth user profile fetch fallback:', err);
+          const defaultCommunityFollowers = [
+            'synth_fox',
+            'nocturnal_rider',
+            'tokyo_drift',
+            'beat_maker',
+            'luna_vibes',
+            'coffee_at_3am',
+            'cyber_wanderer',
+          ];
+          const defaultCommunityFollowing = ['nocturnal_rider', 'tokyo_drift', 'coffee_at_3am'];
+
           setCurrentUser({
             uid: firebaseUser.uid,
             email: firebaseUser.email || '',
@@ -215,8 +240,10 @@ export default function App() {
             displayName: firebaseUser.displayName || 'A Midnight Dreamer',
             avatar: firebaseUser.photoURL || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
             bio: 'Chasing midnight dreams.',
-            followers: 0,
-            following: 0,
+            followers: defaultCommunityFollowers.length,
+            following: defaultCommunityFollowing.length,
+            followersList: defaultCommunityFollowers,
+            followingList: defaultCommunityFollowing,
             stars: 0,
           });
         }
@@ -652,6 +679,105 @@ export default function App() {
     ]);
   };
 
+  const handleFollowCreator = async (creator: {
+    username: string;
+    displayName?: string;
+    avatar?: string;
+    isFollowing: boolean;
+  }) => {
+    if (!currentUser) return;
+
+    const usernameLower = creator.username.toLowerCase();
+    const currentFollowingList = currentUser.followingList || ['nocturnal_rider', 'tokyo_drift', 'coffee_at_3am'];
+    let nextFollowingList: string[];
+
+    if (creator.isFollowing) {
+      if (!currentFollowingList.includes(usernameLower)) {
+        nextFollowingList = [...currentFollowingList, usernameLower];
+      } else {
+        nextFollowingList = currentFollowingList;
+      }
+    } else {
+      nextFollowingList = currentFollowingList.filter((u) => u !== usernameLower);
+    }
+
+    const nextFollowingCount = nextFollowingList.length;
+    const updatedUser: UserProfile = {
+      ...currentUser,
+      following: nextFollowingCount,
+      followingList: nextFollowingList,
+    };
+
+    setCurrentUser(updatedUser);
+
+    // Sync to Firestore if logged in
+    if (currentUser.uid) {
+      try {
+        await updateDoc(doc(db, 'users', currentUser.uid), {
+          following: nextFollowingCount,
+          followingList: nextFollowingList,
+        });
+      } catch (err) {
+        console.warn('Notice syncing follow list to Firestore:', err);
+      }
+    }
+
+    // Add notification when following a creator
+    if (creator.isFollowing) {
+      setNotifications((prev) => [
+        {
+          id: `notif-${Date.now()}`,
+          type: 'follow',
+          user: {
+            username: creator.username,
+            avatar: creator.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150',
+          },
+          content: `You followed @${creator.username} from Shorts!`,
+          time: 'Just now',
+          read: false,
+        },
+        ...prev,
+      ]);
+    }
+  };
+
+  const handleRemoveFollower = async (targetUsername: string) => {
+    if (!currentUser) return;
+
+    const usernameLower = targetUsername.toLowerCase();
+    const currentFollowersList =
+      currentUser.followersList || [
+        'synth_fox',
+        'nocturnal_rider',
+        'tokyo_drift',
+        'beat_maker',
+        'luna_vibes',
+        'coffee_at_3am',
+        'cyber_wanderer',
+      ];
+    const nextFollowersList = currentFollowersList.filter((u) => u !== usernameLower);
+    const nextFollowersCount = nextFollowersList.length;
+
+    const updatedUser: UserProfile = {
+      ...currentUser,
+      followers: nextFollowersCount,
+      followersList: nextFollowersList,
+    };
+
+    setCurrentUser(updatedUser);
+
+    if (currentUser.uid) {
+      try {
+        await updateDoc(doc(db, 'users', currentUser.uid), {
+          followers: nextFollowersCount,
+          followersList: nextFollowersList,
+        });
+      } catch (err) {
+        console.warn('Notice syncing followers to Firestore:', err);
+      }
+    }
+  };
+
   const handleUpdateProfile = async (updated: Partial<UserProfile> | UserProfile) => {
     if (!currentUser?.uid) return;
     try {
@@ -1042,6 +1168,8 @@ export default function App() {
                     onClose={() => setActiveTab('feed')}
                     onOpenChatWithUser={handleOpenChatWithUser}
                     onOpenCreateShort={() => setShowCreateShortModal(true)}
+                    onOpenUserProfile={(user) => setViewingUserProfile(user)}
+                    onFollowCreator={handleFollowCreator}
                     shorts={shorts}
                     setShorts={setShorts}
                   />
@@ -1074,6 +1202,19 @@ export default function App() {
                     posts={posts}
                     onLike={handleLikePost}
                     onSignOut={handleSignOut}
+                    onOpenChatWithUser={handleOpenChatWithUser}
+                    onOpenUserProfile={(user) => setViewingUserProfile(user)}
+                    onToggleFollowUser={(targetUser, isFollowed) =>
+                      handleFollowCreator({
+                        username: targetUser.username,
+                        displayName: targetUser.displayName,
+                        avatar: targetUser.avatar,
+                        isFollowing: isFollowed,
+                      })
+                    }
+                    followingList={currentUser?.followingList}
+                    followersList={currentUser?.followersList}
+                    onRemoveFollower={handleRemoveFollower}
                   />
                 </div>
               )}

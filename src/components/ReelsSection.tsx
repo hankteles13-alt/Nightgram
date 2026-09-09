@@ -49,13 +49,124 @@ export interface ShortVideo {
   moodTag: string;
 }
 
-const DEFAULT_SHORTS: ShortVideo[] = [];
+export const DEFAULT_SHORTS: ShortVideo[] = [
+  {
+    id: 'short-synthfox-rain',
+    creator: {
+      username: 'synth_fox',
+      displayName: 'Elena Vance',
+      avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150',
+      isFollowing: false,
+      badge: '🌙 Night Owl',
+    },
+    videoUrl: 'https://assets.mixkit.co/videos/preview/mixkit-rain-falling-on-the-water-of-a-lake-seen-up-18312-large.mp4',
+    posterUrl: 'https://images.unsplash.com/photo-1514924013511-c8f4117702a3?w=800',
+    caption: 'Late night rain reflections in Shibuya 🌧️ neon glow hits different at 2am',
+    tags: ['rain', 'cyberpunk', 'tokyo', 'nocturnal'],
+    audioTrack: {
+      title: 'Midnight Rain Lofi',
+      artist: 'Synthfox',
+      codeNumber: '0001',
+    },
+    likes: 1420,
+    commentsCount: 88,
+    sharesCount: 34,
+    savesCount: 112,
+    isLiked: false,
+    isSaved: false,
+    timeAgo: '2h ago',
+    moodTag: 'Rainy Night',
+  },
+  {
+    id: 'short-nocturnal-waves',
+    creator: {
+      username: 'nocturnal_rider',
+      displayName: 'Maya Lin',
+      avatar: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=150',
+      isFollowing: false,
+      badge: '⚡ Street Rider',
+    },
+    videoUrl: 'https://assets.mixkit.co/videos/preview/mixkit-waves-in-the-water-1164-large.mp4',
+    posterUrl: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=800',
+    caption: 'Midnight oceanic reflections under celestial moonlight 🌊🌃 silence of the dark waters',
+    tags: ['waves', 'ocean', 'moonlight', 'midnight'],
+    audioTrack: {
+      title: 'Dark Water Symphony',
+      artist: 'Maya Lin',
+      codeNumber: '0002',
+    },
+    likes: 2150,
+    commentsCount: 145,
+    sharesCount: 92,
+    savesCount: 230,
+    isLiked: false,
+    isSaved: false,
+    timeAgo: '4h ago',
+    moodTag: 'Dark Waves',
+  },
+  {
+    id: 'short-tokyo-sunset',
+    creator: {
+      username: 'tokyo_drift',
+      displayName: 'Kenji Sato',
+      avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150',
+      isFollowing: false,
+      badge: '🏙️ Tokyo Resident',
+    },
+    videoUrl: 'https://assets.mixkit.co/videos/preview/mixkit-set-of-plateaus-seen-from-the-sky-in-a-sunset-26070-large.mp4',
+    posterUrl: 'https://images.unsplash.com/photo-1540959733332-eab4deceeaf7?w=800',
+    caption: 'Golden dusk transforming into neon twilight across the metropolis skyline 🌇✨',
+    tags: ['twilight', 'skyline', 'neon', 'cinematic'],
+    audioTrack: {
+      title: 'Neon Horizon',
+      artist: 'Kenji Sato',
+      codeNumber: '0003',
+    },
+    likes: 3890,
+    commentsCount: 260,
+    sharesCount: 140,
+    savesCount: 512,
+    isLiked: false,
+    isSaved: false,
+    timeAgo: '6h ago',
+    moodTag: 'Neon Horizon',
+  },
+  {
+    id: 'short-beatmaker-screens',
+    creator: {
+      username: 'beat_maker',
+      displayName: 'Julian Cruz',
+      avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150',
+      isFollowing: false,
+      badge: '🎛️ Beatmaker',
+    },
+    videoUrl: 'https://assets.mixkit.co/videos/preview/mixkit-hands-holding-a-smartphone-with-a-green-screen-42797-large.mp4',
+    posterUrl: 'https://images.unsplash.com/photo-1511512578047-dfb367046420?w=800',
+    caption: 'Analog oscillators and 808 sub-bass tuned for 3am headphones sessions 🎧🎹',
+    tags: ['synth', 'analog', 'beats', 'lofi'],
+    audioTrack: {
+      title: 'Juno 106 Frequencies',
+      artist: 'Julian Cruz',
+      codeNumber: '0004',
+    },
+    likes: 980,
+    commentsCount: 42,
+    sharesCount: 18,
+    savesCount: 88,
+    isLiked: false,
+    isSaved: false,
+    timeAgo: '8h ago',
+    moodTag: 'Analog Chill',
+  },
+];
 
 interface ReelsSectionProps {
   currentUser: UserProfile | null;
   onClose?: () => void;
   onOpenChatWithUser?: (user: { uid?: string; username: string; displayName?: string; avatar?: string }) => void;
   onOpenCreateShort?: () => void;
+  onOpenUserProfile?: (user: any) => void;
+  onFollowCreator?: (creator: { username: string; displayName: string; avatar: string; isFollowing: boolean }) => void;
   shorts?: ShortVideo[];
   setShorts?: React.Dispatch<React.SetStateAction<ShortVideo[]>>;
 }
@@ -65,6 +176,8 @@ export function ReelsSection({
   onClose,
   onOpenChatWithUser,
   onOpenCreateShort,
+  onOpenUserProfile,
+  onFollowCreator,
   shorts: externalShorts,
   setShorts: externalSetShorts,
 }: ReelsSectionProps) {
@@ -91,6 +204,7 @@ export function ReelsSection({
   const [newComment, setNewComment] = useState('');
   const [isVideoLoading, setIsVideoLoading] = useState(false);
   const [showNiyteeEndCard, setShowNiyteeEndCard] = useState(false);
+  const [followToast, setFollowToast] = useState<string | null>(null);
 
   const [commentsList, setCommentsList] = useState<{ [id: string]: { username: string; text: string; time: string; avatar: string }[] }>({
     'short-1': [
@@ -241,20 +355,41 @@ export function ReelsSection({
   };
 
   const handleFollowToggle = (username: string) => {
+    let nextFollowingState = false;
+    let targetCreator: { username: string; displayName: string; avatar: string; isFollowing: boolean } | null = null;
+
     setShorts((prev) =>
       prev.map((short) => {
         if (short.creator.username === username) {
+          nextFollowingState = !short.creator.isFollowing;
+          targetCreator = {
+            username: short.creator.username,
+            displayName: short.creator.displayName,
+            avatar: short.creator.avatar,
+            isFollowing: nextFollowingState,
+          };
           return {
             ...short,
             creator: {
               ...short.creator,
-              isFollowing: !short.creator.isFollowing,
+              isFollowing: nextFollowingState,
             },
           };
         }
         return short;
       })
     );
+
+    if (targetCreator && onFollowCreator) {
+      onFollowCreator(targetCreator);
+    }
+
+    setFollowToast(
+      nextFollowingState
+        ? `✨ Following @${username} • Added to your Following list!`
+        : `Unfollowed @${username}`
+    );
+    setTimeout(() => setFollowToast(null), 2500);
   };
 
   const handleDoubleTap = (id: string) => {
@@ -403,6 +538,21 @@ export function ReelsSection({
             className="w-full h-full object-cover sm:object-contain sm:max-w-[480px] bg-black"
           />
 
+          {/* Follow Toast Notification Banner */}
+          <AnimatePresence>
+            {followToast && (
+              <motion.div
+                initial={{ opacity: 0, y: -20, scale: 0.95 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: -15, scale: 0.95 }}
+                className="absolute top-16 inset-x-4 z-40 mx-auto max-w-sm bg-gradient-to-r from-cyan-950/95 via-black/95 to-purple-950/95 border border-cyan-500/60 rounded-2xl py-2 px-4 shadow-[0_0_20px_rgba(6,182,212,0.4)] backdrop-blur-md text-xs font-semibold text-cyan-200 text-center flex items-center justify-center gap-2 pointer-events-none"
+              >
+                <Sparkles className="w-3.5 h-3.5 text-cyan-400 animate-spin" />
+                <span>{followToast}</span>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
           {/* Persistent subtle 'niytee' watermark badge */}
           <div className="absolute top-16 left-4 z-20 pointer-events-none opacity-80 flex items-center space-x-1.5 bg-black/40 backdrop-blur-md px-2.5 py-1 rounded-full border border-white/10 shadow-lg">
             <div className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse"></div>
@@ -546,7 +696,15 @@ export function ReelsSection({
           >
             {/* 1. Creator Avatar with Red '+' follow badge */}
             <div className="relative mb-2 flex flex-col items-center">
-              <div className="w-12 h-12 rounded-full border-2 border-white overflow-hidden p-[1px] bg-black shadow-lg">
+              <div
+                onClick={() => {
+                  if (onOpenUserProfile) {
+                    onOpenUserProfile(currentShort.creator);
+                  }
+                }}
+                className="w-12 h-12 rounded-full border-2 border-white overflow-hidden p-[1px] bg-black shadow-lg cursor-pointer hover:scale-105 active:scale-95 transition"
+                title={`View @${currentShort.creator.username}'s profile`}
+              >
                 <img
                   src={currentShort.creator.avatar}
                   alt={currentShort.creator.username}
@@ -558,16 +716,22 @@ export function ReelsSection({
               {/* Follow '+' Badge overlapping bottom center of avatar */}
               {!currentShort.creator.isFollowing ? (
                 <button
+                  id={`reels-creator-follow-btn-${currentShort.creator.username}`}
                   onClick={() => handleFollowToggle(currentShort.creator.username)}
-                  className="absolute -bottom-2 w-5 h-5 rounded-full bg-[#fe2c55] text-white flex items-center justify-center shadow-[0_0_10px_rgba(254,44,85,0.7)] hover:scale-110 active:scale-95 transition cursor-pointer"
-                  title="Follow creator"
+                  className="absolute -bottom-2 w-6 h-6 rounded-full bg-[#fe2c55] hover:bg-[#ff1744] text-white flex items-center justify-center shadow-[0_0_12px_rgba(254,44,85,0.85)] hover:scale-125 active:scale-95 transition-all duration-200 cursor-pointer animate-pulse"
+                  title={`Follow @${currentShort.creator.username} (+)`}
                 >
-                  <Plus className="w-3.5 h-3.5 stroke-[3]" />
+                  <Plus className="w-4 h-4 stroke-[3]" />
                 </button>
               ) : (
-                <div className="absolute -bottom-2 w-5 h-5 rounded-full bg-cyan-400 text-black flex items-center justify-center shadow-md">
-                  <Check className="w-3 h-3 stroke-[3]" />
-                </div>
+                <button
+                  id={`reels-creator-following-btn-${currentShort.creator.username}`}
+                  onClick={() => handleFollowToggle(currentShort.creator.username)}
+                  className="absolute -bottom-2 w-6 h-6 rounded-full bg-cyan-400 hover:bg-red-500 text-black hover:text-white flex items-center justify-center shadow-[0_0_10px_rgba(6,182,212,0.8)] hover:scale-115 active:scale-95 transition-all duration-200 cursor-pointer"
+                  title={`Following @${currentShort.creator.username} (Click to unfollow)`}
+                >
+                  <Check className="w-3.5 h-3.5 stroke-[3]" />
+                </button>
               )}
             </div>
 
