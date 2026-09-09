@@ -27,6 +27,7 @@ import {
   Volume2
 } from 'lucide-react';
 import NocturnalRhythmChart from './NocturnalRhythmChart';
+import { doc, getDoc, db } from '../lib/supabaseFirestore';
 
 interface ProfileSectionProps {
   userProfile: UserProfile;
@@ -55,6 +56,9 @@ export default function ProfileSection({
   const [isEditing, setIsEditing] = useState(false);
   const [showRhythmChart, setShowRhythmChart] = useState(false);
   const [editName, setEditName] = useState(userProfile.displayName || '');
+  const [editUsername, setEditUsername] = useState(userProfile.username || '');
+  const [usernameError, setUsernameError] = useState('');
+  const [isCheckingUsername, setIsCheckingUsername] = useState(false);
   const [editBio, setEditBio] = useState(userProfile.bio || '');
   const [editAvatar, setEditAvatar] = useState(userProfile.avatar || '');
   const [selectedPost, setSelectedPost] = useState<Post | null>(null);
@@ -65,9 +69,11 @@ export default function ProfileSection({
 
   useEffect(() => {
     setEditName(userProfile.displayName || '');
+    setEditUsername(userProfile.username || '');
     setEditBio(userProfile.bio || '');
     setEditAvatar(userProfile.avatar || '');
-  }, [userProfile.displayName, userProfile.bio, userProfile.avatar]);
+    setUsernameError('');
+  }, [userProfile.displayName, userProfile.username, userProfile.bio, userProfile.avatar]);
 
   const myPosts = posts.filter((p) => p.userId === userProfile.uid || p.username === userProfile.username);
   const savedPosts = posts.filter((p) => p.savedBy?.includes(userProfile.uid) || p.isSaved);
@@ -135,11 +141,43 @@ export default function ProfileSection({
     reader.readAsDataURL(file);
   };
 
-  const handleSaveProfile = (e: React.FormEvent) => {
+  const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault();
+    setUsernameError('');
+
+    const cleanUsername = editUsername.trim().toLowerCase().replace(/[^a-z0-9_]/g, '');
+
+    if (!cleanUsername || cleanUsername.length < 3) {
+      setUsernameError('Username must be at least 3 characters (letters, numbers, _).');
+      return;
+    }
+
+    if (cleanUsername.length > 20) {
+      setUsernameError('Username cannot exceed 20 characters.');
+      return;
+    }
+
+    // If username changed, check if taken
+    if (cleanUsername !== (userProfile.username || '').toLowerCase()) {
+      setIsCheckingUsername(true);
+      try {
+        const snap = await getDoc(doc(db, 'usernames', cleanUsername));
+        if (snap.exists() && snap.data()?.uid !== userProfile.uid) {
+          setUsernameError(`@${cleanUsername} is already taken by another user.`);
+          setIsCheckingUsername(false);
+          return;
+        }
+      } catch (err) {
+        console.warn('Username check error:', err);
+      } finally {
+        setIsCheckingUsername(false);
+      }
+    }
+
     onUpdateProfile({
       ...userProfile,
-      displayName: editName,
+      displayName: editName.trim() || cleanUsername,
+      username: cleanUsername,
       bio: editBio,
       avatar: editAvatar,
     });
@@ -382,6 +420,31 @@ export default function ProfileSection({
                       <span>Choose from Device</span>
                     </button>
                   </div>
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-bold text-zinc-400 uppercase mb-1 flex items-center justify-between">
+                    <span>Unique Username (@)</span>
+                    <span className="text-zinc-500 font-mono lowercase">letters, numbers, _</span>
+                  </label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-cyan-400 font-mono text-xs font-bold select-none">
+                      @
+                    </span>
+                    <input
+                      type="text"
+                      value={editUsername}
+                      onChange={(e) => {
+                        setEditUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ''));
+                        setUsernameError('');
+                      }}
+                      className="w-full bg-[#121218] border border-zinc-800 rounded-xl pl-7 pr-3 py-2 text-xs text-cyan-300 font-mono focus:outline-none focus:border-cyan-500"
+                      placeholder="username"
+                    />
+                  </div>
+                  {usernameError && (
+                    <p className="text-[11px] text-red-400 mt-1">{usernameError}</p>
+                  )}
                 </div>
 
                 <div>

@@ -1,6 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { db } from './firebase';
-import { doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
+import { db, doc, getDoc, setDoc, updateDoc } from './supabaseFirestore';
 
 export interface CustomList {
   id: string;

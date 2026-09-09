@@ -127,6 +127,8 @@ jobs:
 
       - name: Build
         run: npm run build
+        env:
+          GITHUB_PAGES: 'true'
 
       - name: Commit 2FA migration
         shell: bash

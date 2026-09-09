@@ -1655,11 +1655,13 @@ export default function MessagesSection({
   }, [sidebarSearch, directChats]);
 
   // Filtered user list for modal search
-  const filteredModalUsers = allUsers.filter(
-    (u) =>
-      u.displayName.toLowerCase().includes(userSearchQuery.toLowerCase()) ||
-      u.username.toLowerCase().includes(userSearchQuery.toLowerCase())
-  );
+  const filteredModalUsers = allUsers.filter((u) => {
+    const cleanSearch = userSearchQuery.trim().toLowerCase().replace(/^@/, '');
+    if (!cleanSearch) return true;
+    const dName = (u.displayName || '').toLowerCase();
+    const uName = (u.username || '').toLowerCase();
+    return dName.includes(cleanSearch) || uName.includes(cleanSearch);
+  });
 
   return (
     <div

@@ -41,6 +41,7 @@ interface FeedSectionProps {
   selectedMood: string;
   setSelectedMood: (mood: string) => void;
   onOpenChatWithUser?: (user: { uid?: string; username: string; displayName?: string; avatar?: string }) => void;
+  onOpenUserProfile?: (user: { uid?: string; username: string; displayName?: string; avatar?: string }) => void;
   onRefreshFeed?: () => void;
   isRefreshing?: boolean;
 }
@@ -59,6 +60,7 @@ export default function FeedSection({
   selectedMood,
   setSelectedMood,
   onOpenChatWithUser,
+  onOpenUserProfile,
   onRefreshFeed,
   isRefreshing = false,
 }: FeedSectionProps) {
@@ -289,13 +291,22 @@ export default function FeedSection({
                   {/* Story ring on avatar */}
                   <div
                     className="relative cursor-pointer"
-                    onClick={() =>
-                      onOpenChatWithUser?.({
-                        username: post.username,
-                        displayName: post.displayName || post.username,
-                        avatar: post.userAvatar,
-                      })
-                    }
+                    onClick={() => {
+                      if (onOpenUserProfile) {
+                        onOpenUserProfile({
+                          uid: post.userId,
+                          username: post.username,
+                          displayName: post.displayName || post.username,
+                          avatar: post.userAvatar,
+                        });
+                      } else {
+                        onOpenChatWithUser?.({
+                          username: post.username,
+                          displayName: post.displayName || post.username,
+                          avatar: post.userAvatar,
+                        });
+                      }
+                    }}
                   >
                     <div
                       className={`p-[2px] rounded-full ${
@@ -315,13 +326,22 @@ export default function FeedSection({
                   <div className="min-w-0">
                     <div className="flex items-center space-x-1.5">
                       <span
-                        onClick={() =>
-                          onOpenChatWithUser?.({
-                            username: post.username,
-                            displayName: post.displayName || post.username,
-                            avatar: post.userAvatar,
-                          })
-                        }
+                        onClick={() => {
+                          if (onOpenUserProfile) {
+                            onOpenUserProfile({
+                              uid: post.userId,
+                              username: post.username,
+                              displayName: post.displayName || post.username,
+                              avatar: post.userAvatar,
+                            });
+                          } else {
+                            onOpenChatWithUser?.({
+                              username: post.username,
+                              displayName: post.displayName || post.username,
+                              avatar: post.userAvatar,
+                            });
+                          }
+                        }}
                         className="text-xs sm:text-sm font-bold text-zinc-100 hover:text-cyan-300 transition cursor-pointer truncate"
                       >
                         {post.username}

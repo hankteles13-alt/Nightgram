@@ -41,6 +41,8 @@ import AuthScreen from './components/AuthScreen';
 import AvatarStatusIndicator from './components/AvatarStatusIndicator';
 import PullToRefresh from './components/PullToRefresh';
 import { AppSettingsModal } from './components/AppSettingsModal';
+import SearchUsersModal from './components/SearchUsersModal';
+import UserProfileModal from './components/UserProfileModal';
 import { optimizeImageForFirestore } from './lib/imageOptimizer';
 import { auth } from './lib/supabaseAuth';
 import { db } from './lib/supabaseFirestore';
@@ -111,6 +113,20 @@ export default function App() {
   const [notifFilterTab, setNotifFilterTab] = useState<'all' | 'unread' | 'mentions'>('all');
   const [isLofiPlaying, setIsLofiPlaying] = useState(false);
   const [targetChatUser, setTargetChatUser] = useState<{ uid?: string; username: string; displayName?: string; avatar?: string } | null>(null);
+  const [showSearchModal, setShowSearchModal] = useState(false);
+  const [viewingUserProfile, setViewingUserProfile] = useState<any | null>(null);
+
+  // Global shortcut (Cmd+K / Ctrl+K) to search users by username
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        setShowSearchModal((prev) => !prev);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   // Header visibility scroll listener state
   const [isHeaderVisible, setIsHeaderVisible] = useState(true);
@@ -148,7 +164,21 @@ export default function App() {
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
-        const isSession2FAValid = sessionStorage.getItem(`nightgram_2fa_${firebaseUser.uid}`) === 'true';
+        const isGoogleUser =
+          firebaseUser.app_metadata?.provider === 'google' ||
+          (Array.isArray(firebaseUser.app_metadata?.providers) && firebaseUser.app_metadata.providers.includes('google')) ||
+          firebaseUser.user_metadata?.iss?.includes('google') ||
+          firebaseUser.user_metadata?.avatar_url?.includes('googleusercontent') ||
+          sessionStorage.getItem(`nightgram_google_${firebaseUser.uid}`) === 'true';
+
+        if (isGoogleUser) {
+          sessionStorage.setItem(`nightgram_2fa_${firebaseUser.uid}`, 'true');
+        }
+
+        const isSession2FAValid =
+          isGoogleUser ||
+          sessionStorage.getItem(`nightgram_2fa_${firebaseUser.uid}`) === 'true';
+
         setIs2FAVerified(isSession2FAValid);
         try {
           const userDocRef = doc(db, 'users', firebaseUser.uid);
@@ -160,9 +190,11 @@ export default function App() {
             const fallbackProfile = {
               uid: firebaseUser.uid,
               email: firebaseUser.email || '',
-              username: firebaseUser.email?.split('@')[0] || 'dreamer',
+              username: (firebaseUser.email ? firebaseUser.email.split('@')[0] : 'dreamer')
+                .toLowerCase()
+                .replace(/[^a-z0-9_]/g, ''),
               displayName: firebaseUser.displayName || 'A Midnight Dreamer',
-              avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
+              avatar: firebaseUser.photoURL || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
               bio: 'Chasing midnight dreams.',
               followers: 0,
               following: 0,
@@ -177,9 +209,11 @@ export default function App() {
           setCurrentUser({
             uid: firebaseUser.uid,
             email: firebaseUser.email || '',
-            username: firebaseUser.email?.split('@')[0] || 'dreamer',
+            username: (firebaseUser.email ? firebaseUser.email.split('@')[0] : 'dreamer')
+              .toLowerCase()
+              .replace(/[^a-z0-9_]/g, ''),
             displayName: firebaseUser.displayName || 'A Midnight Dreamer',
-            avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
+            avatar: firebaseUser.photoURL || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
             bio: 'Chasing midnight dreams.',
             followers: 0,
             following: 0,
@@ -655,6 +689,21 @@ export default function App() {
 
       await updateDoc(userRef, updateData);
 
+      // If username changed, reserve new username and release previous one
+      if (newUsername && newUsername !== currentUser.username) {
+        try {
+          await setDoc(doc(db, 'usernames', newUsername), {
+            uid: currentUser.uid,
+            updatedAt: new Date().toISOString(),
+          });
+          if (currentUser.username) {
+            await deleteDoc(doc(db, 'usernames', currentUser.username));
+          }
+        } catch (uErr) {
+          console.warn('Username reservation sync notice:', uErr);
+        }
+      }
+
       // Update local state immediately so all UI components update instantly
       const updatedUser = {
         ...currentUser,
@@ -858,6 +907,27 @@ export default function App() {
           </div>
         </div>
 
+        {/* Search Citizens Input Trigger */}
+        <div className="flex-1 max-w-xs sm:max-w-sm md:max-w-md mx-2 sm:mx-4">
+          <button
+            id="header-search-citizens-btn"
+            type="button"
+            onClick={() => setShowSearchModal(true)}
+            className="w-full flex items-center justify-between px-3 py-1.5 sm:py-2 rounded-xl bg-[#12121a]/90 hover:bg-[#181826] border border-zinc-800 hover:border-cyan-500/50 text-zinc-400 hover:text-zinc-200 transition shadow-inner group cursor-pointer"
+            title="Search citizens by username or name (Cmd+K)"
+          >
+            <div className="flex items-center space-x-2 truncate min-w-0">
+              <Search className="w-3.5 h-3.5 text-cyan-400 group-hover:text-cyan-300 flex-shrink-0" />
+              <span className="text-xs truncate font-sans text-zinc-400 group-hover:text-zinc-200">
+                Search <span className="text-cyan-400 font-mono font-semibold">@username</span> or name...
+              </span>
+            </div>
+            <span className="hidden sm:inline-block text-[10px] font-mono px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-400 border border-zinc-700">
+              ⌘K
+            </span>
+          </button>
+        </div>
+
         {/* Global Utilities (Theme Toggle, Lofi, Notifications, Quick Chats) */}
         <div className="flex items-center space-x-2 sm:space-x-2.5" id="global-header-controls">
           {/* Theme Mode Toggle */}
@@ -958,6 +1028,7 @@ export default function App() {
                     selectedMood={selectedMood}
                     setSelectedMood={setSelectedMood}
                     onOpenChatWithUser={handleOpenChatWithUser}
+                    onOpenUserProfile={(user) => setViewingUserProfile(user)}
                     onRefreshFeed={handleRefreshFeed}
                     isRefreshing={isRefreshingFeed}
                   />
@@ -1155,6 +1226,25 @@ export default function App() {
         isTrueBlack={isTrueBlack}
         onToggleTheme={toggleTheme}
         onClearAllChats={handleClearMessages}
+      />
+
+      {/* Global Search Users by Username Modal */}
+      <SearchUsersModal
+        isOpen={showSearchModal}
+        onClose={() => setShowSearchModal(false)}
+        currentUser={currentUser}
+        onSelectUser={(user) => setViewingUserProfile(user)}
+        onOpenChatWithUser={handleOpenChatWithUser}
+      />
+
+      {/* User Profile Modal when a Citizen is clicked/searched */}
+      <UserProfileModal
+        isOpen={Boolean(viewingUserProfile)}
+        user={viewingUserProfile}
+        currentUser={currentUser}
+        posts={posts}
+        onClose={() => setViewingUserProfile(null)}
+        onOpenChatWithUser={handleOpenChatWithUser}
       />
     </div>
   );
