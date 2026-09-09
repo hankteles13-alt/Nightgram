@@ -99,8 +99,31 @@ export const signInWithEmailAndPassword = async (
   return { user: normalizeUser(data.user)! };
 };
 
+// Always return Google OAuth users to the public Nightgram production domain.
+// This prevents OAuth from returning a user to a protected Vercel preview URL,
+// which can incorrectly ask the visitor to create/sign into a Vercel account.
+const getOAuthRedirectUrl = (): string => {
+  if (typeof window === 'undefined') return 'https://nightgram.vercel.app/';
+
+  const hostname = window.location.hostname.toLowerCase();
+
+  // Any Vercel deployment (including preview URLs) should complete OAuth on
+  // the public production URL instead of a deployment-specific hostname.
+  if (hostname === 'nightgram.vercel.app' || hostname.endsWith('.vercel.app')) {
+    return 'https://nightgram.vercel.app/';
+  }
+
+  // Preserve GitHub Pages support if that deployment is still used.
+  if (hostname === 'hankteles13-alt.github.io') {
+    return `${window.location.origin}/Nightgram/`;
+  }
+
+  // For a future custom production domain, keep the current origin/path.
+  return window.location.origin + window.location.pathname;
+};
+
 export const getGoogleOAuthUrl = async (): Promise<string> => {
-  const redirectUrl = window.location.origin + window.location.pathname;
+  const redirectUrl = getOAuthRedirectUrl();
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider: 'google',
     options: {
@@ -146,7 +169,7 @@ export const handleOAuthCallbackInPopup = (): boolean => {
             type: 'NIGHTGRAM_AUTH_SUCCESS',
             session,
           },
-          '*'
+          '*',
         );
       } catch (e) {
         console.warn('postMessage to opener notice:', e);
@@ -183,7 +206,6 @@ export const handleOAuthCallbackInPopup = (): boolean => {
 };
 
 export const signInWithPopup = async (): Promise<{ user: AppUser | null; data?: any }> => {
-  // Check if session already exists
   const { data: sessionData } = await supabase.auth.getSession();
   if (sessionData?.session?.user) {
     return { user: normalizeUser(sessionData.session.user), data: sessionData };
@@ -191,7 +213,6 @@ export const signInWithPopup = async (): Promise<{ user: AppUser | null; data?: 
 
   const authUrl = await getGoogleOAuthUrl();
 
-  // Open in centered popup window
   const width = 520;
   const height = 650;
   const left = window.screenX + Math.max(0, (window.outerWidth - width) / 2);
@@ -202,7 +223,7 @@ export const signInWithPopup = async (): Promise<{ user: AppUser | null; data?: 
     popup = window.open(
       authUrl,
       'nightgram-google-auth',
-      `width=${width},height=${height},left=${left},top=${top},status=no,resizable=yes,scrollbars=yes`
+      `width=${width},height=${height},left=${left},top=${top},status=no,resizable=yes,scrollbars=yes`,
     );
   } catch (openErr) {
     console.warn('Popup window.open failed:', openErr);
@@ -295,7 +316,7 @@ export const signInWithPopup = async (): Promise<{ user: AppUser | null; data?: 
 };
 
 export const signInWithRedirect = async (): Promise<void> => {
-  const redirectUrl = window.location.origin + window.location.pathname;
+  const redirectUrl = getOAuthRedirectUrl();
   const { error } = await supabase.auth.signInWithOAuth({
     provider: 'google',
     options: {
