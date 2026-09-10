@@ -109,46 +109,81 @@ export default function StoriesSection({ stories, currentUser, onOpenCreateStory
     setTimeout(() => setSentReplyNotice(false), 2000);
   };
 
+  // Find user's own stories and others
+  const myStories = stories.filter(
+    (s) => currentUser && ((s.userId && s.userId === currentUser.uid) || (s.username && s.username === currentUser.username))
+  );
+  const otherStories = stories.filter(
+    (s) => !currentUser || ((!s.userId || s.userId !== currentUser.uid) && (!s.username && s.username !== currentUser.username))
+  );
+  const hasMyStories = myStories.length > 0;
+
+  const handleYourStoryClick = (e: React.MouseEvent) => {
+    if (hasMyStories) {
+      // Find the index of the first of my stories in the full stories list
+      const idx = stories.findIndex((s) => s.id === myStories[0].id);
+      if (idx !== -1) {
+        setActiveStoryIdx(idx);
+        return;
+      }
+    }
+    if (onOpenCreateStory) onOpenCreateStory();
+  };
+
   return (
     <div className="w-full py-3 px-3 sm:px-4 border border-zinc-800/80 bg-[#07070d]/80 backdrop-blur-md rounded-2xl shadow-xl" id="stories-tray-container">
       {/* Stories horizontal bar */}
       <div className="flex space-x-3.5 sm:space-x-4 overflow-x-auto pb-0.5 scrollbar-none items-center w-full" id="stories-scroll-wrapper">
-        {/* Current user's add story option */}
+        {/* Current user's story / add story option */}
         <div
           className="flex flex-col items-center space-y-1.5 flex-shrink-0 cursor-pointer group select-none"
           id="user-story-bubble"
-          onClick={onOpenCreateStory}
+          onClick={handleYourStoryClick}
+          title={hasMyStories ? "View your story or click + to add" : "Add to your story"}
         >
           <div className="relative">
-            <div className="w-[66px] h-[66px] rounded-full p-[2.5px] bg-zinc-800 group-hover:bg-zinc-700 transition-all duration-200">
-              <img
-                src={currentUser?.avatar || "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80"}
-                alt="Your story"
-                className="w-full h-full object-cover rounded-full border-2 border-black"
-                referrerPolicy="no-referrer"
-              />
+            <div className={`w-[66px] h-[66px] rounded-full p-[2.5px] transition-all duration-300 group-hover:scale-105 ${
+              hasMyStories 
+                ? 'bg-gradient-to-tr from-[#f58529] via-[#dd2a7b] to-[#8134af] shadow-[0_0_12px_rgba(221,42,123,0.35)]' 
+                : 'bg-zinc-800 group-hover:bg-zinc-700'
+            }`}>
+              <div className="w-full h-full rounded-full p-[2px] bg-black">
+                <img
+                  src={currentUser?.avatar || "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80"}
+                  alt="Your story"
+                  className="w-full h-full object-cover rounded-full"
+                  referrerPolicy="no-referrer"
+                />
+              </div>
             </div>
-            <div className="absolute bottom-0.5 right-0.5 w-5 h-5 rounded-full bg-cyan-500 border-2 border-black flex items-center justify-center text-xs text-zinc-950 font-bold shadow-md">
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                if (onOpenCreateStory) onOpenCreateStory();
+              }}
+              title="Add to story"
+              className="absolute bottom-0.5 right-0.5 w-5 h-5 rounded-full bg-cyan-500 hover:bg-cyan-400 border-2 border-black flex items-center justify-center text-xs text-zinc-950 font-bold shadow-md cursor-pointer transition-transform hover:scale-110 active:scale-95"
+            >
               +
-            </div>
+            </button>
           </div>
-          <span className="text-[11px] text-zinc-300 font-normal tracking-tight max-w-[66px] truncate text-center">
-            Your story
+          <span className="text-[11px] text-zinc-300 font-normal tracking-tight max-w-[66px] truncate text-center group-hover:text-white transition-colors duration-200">
+            {hasMyStories ? 'Your story' : 'Add story'}
           </span>
         </div>
 
-        {/* Other active stories with iconic Instagram gradient story ring */}
-        {stories.map((story, index) => {
+        {/* All other active stories with iconic Instagram gradient story ring */}
+        {otherStories.map((story) => {
+          const originalIdx = stories.findIndex((s) => s.id === story.id);
           const storyAvatar =
-            (currentUser && (story.userId === currentUser.uid || story.username === currentUser.username)
-              ? currentUser.avatar
-              : story.userAvatar) || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80';
+            story.userAvatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80';
 
           return (
             <div
-              key={`story-item-${story.id || 'st'}-${index}`}
+              key={`story-item-${story.id || 'st'}-${originalIdx}`}
               id={`story-bubble-${story.id}`}
-              onClick={() => setActiveStoryIdx(index)}
+              onClick={() => setActiveStoryIdx(originalIdx !== -1 ? originalIdx : 0)}
               className="flex flex-col items-center space-y-1.5 flex-shrink-0 cursor-pointer group select-none"
             >
               <div className="relative">
@@ -156,7 +191,7 @@ export default function StoriesSection({ stories, currentUser, onOpenCreateStory
                 <div className="w-[66px] h-[66px] rounded-full p-[2.5px] bg-gradient-to-tr from-[#f58529] via-[#dd2a7b] to-[#8134af] transition-all duration-300 group-hover:scale-105 shadow-[0_0_12px_rgba(221,42,123,0.35)]">
                   <div className="w-full h-full rounded-full p-[2px] bg-black">
                     <img
-                      src={storyAvatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80'}
+                      src={storyAvatar}
                       alt={story.username}
                       className="w-full h-full object-cover rounded-full"
                       referrerPolicy="no-referrer"

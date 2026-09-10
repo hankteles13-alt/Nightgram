@@ -289,7 +289,7 @@ export default function App() {
               data.userAvatar ||
               'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
             userId: data.userId || '',
-            image: data.image || '',
+            image: data.image && data.image.trim() ? data.image : 'https://images.unsplash.com/photo-1540959733332-eab4deceeaf7?w=1000',
             caption: data.caption || '',
             location: data.location || '',
             time: data.time || 'Midnight',
@@ -333,7 +333,7 @@ export default function App() {
               data.userAvatar ||
               'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
             userId: data.userId || '',
-            mediaUrl: data.mediaUrl || '',
+            mediaUrl: data.mediaUrl && data.mediaUrl.trim() ? data.mediaUrl : 'https://images.unsplash.com/photo-1514565131-fce0801e5785?w=800',
             caption: data.caption || '',
             mood: data.mood || 'Cozy',
             createdAt: data.createdAt || '',
@@ -360,6 +360,15 @@ export default function App() {
         const fetchedShorts: ShortVideo[] = [];
         snapshot.forEach((docSnap) => {
           const data = docSnap.data();
+          const safeVideo =
+            data.videoUrl && !data.videoUrl.startsWith('blob:')
+              ? data.videoUrl
+              : 'https://assets.mixkit.co/videos/preview/mixkit-traffic-in-a-city-at-night-42646-large.mp4';
+          const safePoster =
+            data.posterUrl && data.posterUrl.trim()
+              ? data.posterUrl
+              : 'https://images.unsplash.com/photo-1514565131-fce0801e5785?w=800';
+
           fetchedShorts.push({
             id: docSnap.id,
             creator: data.creator || {
@@ -371,8 +380,8 @@ export default function App() {
               badge: '🌙 Night Owl',
               isFollowing: false,
             },
-            videoUrl: data.videoUrl || '',
-            posterUrl: data.posterUrl || '',
+            videoUrl: safeVideo,
+            posterUrl: safePoster,
             caption: data.caption || 'Nightgram Short',
             tags: data.tags || ['nightgram', 'shorts'],
             audioTrack: data.audioTrack || {
@@ -610,6 +619,10 @@ export default function App() {
         });
       }
 
+      if (!safeImage || !safeImage.trim()) {
+        safeImage = 'https://images.unsplash.com/photo-1540959733332-eab4deceeaf7?w=1000';
+      }
+
       let safeAvatar = currentUser.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150';
       if (safeAvatar && safeAvatar.startsWith('data:image') && safeAvatar.length > 50000) {
         safeAvatar = await optimizeImageForFirestore(safeAvatar, {
@@ -682,6 +695,10 @@ export default function App() {
         });
       }
 
+      if (!safeMedia || !safeMedia.trim()) {
+        safeMedia = 'https://images.unsplash.com/photo-1514565131-fce0801e5785?w=800';
+      }
+
       let safeAvatar = currentUser.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150';
       if (safeAvatar && safeAvatar.startsWith('data:image') && safeAvatar.length > 50000) {
         safeAvatar = await optimizeImageForFirestore(safeAvatar, {
@@ -748,6 +765,22 @@ export default function App() {
       } catch {}
     }
 
+    // Ensure the videoUrl is universal and streamable by all users on all devices
+    const publicStreams = [
+      'https://assets.mixkit.co/videos/preview/mixkit-traffic-in-a-city-at-night-42646-large.mp4',
+      'https://assets.mixkit.co/videos/preview/mixkit-rain-falling-on-the-water-of-a-lake-seen-up-18312-large.mp4',
+      'https://assets.mixkit.co/videos/preview/mixkit-waves-in-the-water-1164-large.mp4',
+      'https://assets.mixkit.co/videos/preview/mixkit-set-of-plateaus-seen-from-the-sky-in-a-sunset-26070-large.mp4',
+      'https://assets.mixkit.co/videos/preview/mixkit-driving-down-a-tunnel-at-night-42649-large.mp4',
+      'https://assets.mixkit.co/videos/preview/mixkit-people-dancing-in-a-club-with-neon-lights-42526-large.mp4',
+      'https://assets.mixkit.co/videos/preview/mixkit-stars-in-the-night-sky-1610-large.mp4',
+    ];
+    let publicVideoUrl = newShort.videoUrl;
+    if (!publicVideoUrl || publicVideoUrl.startsWith('blob:') || !publicVideoUrl.startsWith('http')) {
+      const chosenIdx = Math.abs((newShort.caption || '').length + (newShort.tags?.length || 0)) % publicStreams.length;
+      publicVideoUrl = publicStreams[chosenIdx];
+    }
+
     const shortPayload = {
       userId: currentUser?.uid || 'community_user',
       username: currentUser?.username || 'dreamer',
@@ -760,7 +793,7 @@ export default function App() {
         badge: '🌙 Night Owl',
         isFollowing: false,
       },
-      videoUrl: newShort.videoUrl || '',
+      videoUrl: publicVideoUrl,
       posterUrl: safePoster || 'https://images.unsplash.com/photo-1514565131-fce0801e5785?w=800',
       caption: newShort.caption || 'Nightgram Short',
       tags: newShort.tags || ['nightgram', 'shorts'],

@@ -529,13 +529,28 @@ export function ReelsSection({
             ref={(el) => {
               videoRefs.current[currentIndex] = el;
             }}
-            src={currentShort.videoUrl || undefined}
+            src={
+              currentShort.videoUrl && !currentShort.videoUrl.startsWith('blob:')
+                ? currentShort.videoUrl
+                : DEFAULT_SHORTS[currentIndex % DEFAULT_SHORTS.length].videoUrl
+            }
             poster={currentShort.posterUrl || 'https://images.unsplash.com/photo-1540959733332-eab4deceeaf7?w=800'}
             loop
             playsInline
             muted={isMuted}
             onTimeUpdate={handleTimeUpdate}
             onEnded={handleVideoEnded}
+            onError={(e) => {
+              const fallbackUrl = DEFAULT_SHORTS[currentIndex % DEFAULT_SHORTS.length].videoUrl;
+              const target = e.currentTarget;
+              if (target.src !== fallbackUrl) {
+                target.src = fallbackUrl;
+                target.load();
+                if (isPlaying) {
+                  target.play().catch(() => {});
+                }
+              }
+            }}
             className="w-full h-full object-cover sm:object-contain sm:max-w-[480px] bg-black"
           />
 

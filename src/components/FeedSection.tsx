@@ -96,23 +96,30 @@ export default function FeedSection({
 
   // Formatted User Posts from Firestore/Props
   const combinedFeedPosts = useMemo(() => {
-    return posts.map((p) => ({
-      id: p.id,
-      username: p.username,
-      displayName: p.username,
-      userAvatar: p.userAvatar,
-      hasStory: true,
-      audioTrack: p.mood ? `Nightgram Radio • ${p.mood} Frequency` : 'Nightgram Ambient Lounge',
-      images: [p.image],
-      caption: p.caption,
-      likesCount: p.likes || 0,
-      commentsCount: p.comments?.length || 0,
-      repostsCount: 0,
-      timeAgo: p.time || 'Just now',
-      isFromDb: true,
-      isSponsored: false,
-      commentsList: p.comments || [],
-    }));
+    return posts.map((p) => {
+      const validImage = p.image && p.image.trim() ? p.image : 'https://images.unsplash.com/photo-1540959733332-eab4deceeaf7?w=1000';
+      const validAvatar = p.userAvatar && p.userAvatar.trim() ? p.userAvatar : 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150';
+      return {
+        id: p.id,
+        userId: p.userId,
+        username: p.username || 'night_citizen',
+        displayName: p.username || 'night_citizen',
+        userAvatar: validAvatar,
+        hasStory: true,
+        audioTrack: p.mood ? `Nightgram Radio • ${p.mood} Frequency` : 'Nightgram Ambient Lounge',
+        images: [validImage],
+        caption: p.caption || '',
+        likesCount: p.likes || 0,
+        commentsCount: p.comments?.length || 0,
+        repostsCount: 0,
+        timeAgo: p.time || 'Just now',
+        isFromDb: true,
+        isSponsored: false,
+        isLiked: p.isLiked || false,
+        isSaved: p.isSaved || false,
+        commentsList: p.comments || [],
+      };
+    });
   }, [posts]);
 
   // Handle Like
@@ -120,13 +127,18 @@ export default function FeedSection({
     if (isFromDb) {
       onLike(postId);
     }
+    const currentPost = combinedFeedPosts.find((p) => p.id === postId);
+    const initialLiked = currentPost?.isLiked ?? false;
+    const initialCount = currentPost?.likesCount ?? 0;
+
     setLocalLikes((prev) => {
-      const current = prev[postId] || { isLiked: false, count: 0 };
+      const current = prev[postId] || { isLiked: initialLiked, count: initialCount };
+      const nextLiked = !current.isLiked;
       return {
         ...prev,
         [postId]: {
-          isLiked: !current.isLiked,
-          count: current.isLiked ? Math.max(0, current.count - 1) : current.count + 1,
+          isLiked: nextLiked,
+          count: Math.max(0, current.count + (nextLiked ? 1 : -1)),
         },
       };
     });
@@ -270,11 +282,11 @@ export default function FeedSection({
           combinedFeedPosts.map((post, postIndex) => {
           const postSlide = carouselIndex[post.id] || 0;
           const totalSlides = post.images.length;
-          const isLiked = localLikes[post.id]?.isLiked ?? false;
-          const likesDisplay = (localLikes[post.id]?.count ?? post.likesCount) + (isLiked ? 1 : 0);
+          const isLiked = localLikes[post.id] !== undefined ? localLikes[post.id].isLiked : post.isLiked;
+          const likesDisplay = localLikes[post.id] !== undefined ? localLikes[post.id].count : post.likesCount;
           const isReposted = !!repostedPosts[post.id];
           const repostCount = post.repostsCount + (isReposted ? 1 : 0);
-          const isSaved = !!savedPosts[post.id];
+          const isSaved = savedPosts[post.id] !== undefined ? savedPosts[post.id] : post.isSaved;
           const isMuted = !!mutedPosts[post.id];
           const isHeartPopping = !!doubleTapHeart[post.id];
           const commentsArray = localComments[post.id] || post.commentsList || [];
