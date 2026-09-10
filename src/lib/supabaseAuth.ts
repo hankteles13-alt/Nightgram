@@ -1,14 +1,3 @@
-import {
-  auth as firebaseAuth,
-  createUserWithEmailAndPassword as fbCreateUser,
-  signInWithEmailAndPassword as fbSignIn,
-  signOut as fbSignOut,
-  onAuthStateChanged as fbOnAuthStateChanged,
-  GoogleAuthProvider,
-  signInWithPopup as fbSignInWithPopup,
-  signInWithRedirect as fbSignInWithRedirect,
-  getRedirectResult as fbGetRedirectResult,
-} from './firebase';
 import { supabase } from './supabase';
 
 export interface AppUser {
@@ -25,23 +14,26 @@ export interface AppUser {
 
 export type User = AppUser;
 
-export const auth = firebaseAuth;
+// Compatibility handle for existing callers. Authentication is now handled
+// entirely by Supabase Auth; Firebase is no longer used.
+export const auth = supabase.auth;
 
 export function normalizeUser(user: any): AppUser | null {
   if (!user) return null;
-  const uid = user.uid || user.id || '';
+  const uid = user.id || user.uid || '';
   const email = user.email || '';
+  const metadata = user.user_metadata || {};
   const displayName =
     user.displayName ||
-    user.user_metadata?.full_name ||
-    user.user_metadata?.name ||
+    metadata.displayName ||
+    metadata.full_name ||
+    metadata.name ||
     (email ? email.split('@')[0] : 'A Midnight Dreamer');
   const photoURL =
     user.photoURL ||
-    user.user_metadata?.avatar_url ||
-    user.user_metadata?.picture ||
+    metadata.avatar_url ||
+    metadata.picture ||
     'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80';
-  const emailVerified = !!(user.emailVerified || user.email_confirmed_at);
 
   return {
     ...user,
@@ -50,7 +42,7 @@ export function normalizeUser(user: any): AppUser | null {
     email,
     displayName,
     photoURL,
-    emailVerified,
+    emailVerified: !!user.email_confirmed_at,
   };
 }
 
@@ -58,29 +50,27 @@ export const onAuthStateChanged = (
   _auth: any,
   callback: (user: AppUser | null) => void
 ) => {
-  return fbOnAuthStateChanged(firebaseAuth, (firebaseUser) => {
-    if (firebaseUser) {
-      callback(normalizeUser(firebaseUser));
-    } else {
-      supabase.auth
-        .getSession()
-        .then(({ data }) => {
-          callback(data.session?.user ? normalizeUser(data.session.user) : null);
-        })
-        .catch(() => {
-          callback(null);
-        });
-    }
+  let active = true;
+
+  supabase.auth.getSession().then(({ data }) => {
+    if (active) callback(normalizeUser(data.session?.user));
+  }).catch(() => {
+    if (active) callback(null);
   });
+
+  const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+    if (active) callback(normalizeUser(session?.user));
+  });
+
+  return () => {
+    active = false;
+    listener.subscription.unsubscribe();
+  };
 };
 
 export const signOut = async (_auth?: any) => {
-  try {
-    await fbSignOut(firebaseAuth);
-  } catch {}
-  try {
-    await supabase.auth.signOut();
-  } catch {}
+  const { error } = await supabase.auth.signOut();
+  if (error) throw error;
 };
 
 export const createUserWithEmailAndPassword = async (
@@ -88,16 +78,23 @@ export const createUserWithEmailAndPassword = async (
   email: string,
   pass: string
 ): Promise<{ user: AppUser }> => {
-  try {
-    const res = await fbCreateUser(firebaseAuth, email, pass);
-    return { user: normalizeUser(res.user)! };
-  } catch (err: any) {
-    if (err.code === 'auth/email-already-in-use') {
-      const signInRes = await fbSignIn(firebaseAuth, email, pass);
-      return { user: normalizeUser(signInRes.user)! };
-    }
-    throw err;
+  const cleanEmail = email.trim().toLowerCase();
+  const { data, error } = await supabase.auth.signUp({
+    email: cleanEmail,
+    password: pass,
+    options: {
+      data: {
+        displayName: cleanEmail.split('@')[0],
+      },
+    },
+  });
+
+  if (error) throw error;
+  if (!data.user) throw new Error('Supabase could not create the account.');
+  if (!data.session) {
+    throw new Error('Account created. Please confirm your email, then sign in again.');
   }
+  return { user: normalizeUser(data.user)! };
 };
 
 export const signInWithEmailAndPassword = async (
@@ -105,42 +102,45 @@ export const signInWithEmailAndPassword = async (
   email: string,
   pass: string
 ): Promise<{ user: AppUser }> => {
-  try {
-    const res = await fbSignIn(firebaseAuth, email, pass);
-    return { user: normalizeUser(res.user)! };
-  } catch (err: any) {
-    if (err.code === 'auth/user-not-found' || err.code === 'auth/invalid-credential') {
-      try {
-        const createRes = await fbCreateUser(firebaseAuth, email, pass);
-        return { user: normalizeUser(createRes.user)! };
-      } catch {}
-    }
-    throw err;
-  }
+  const { data, error } = await supabase.auth.signInWithPassword({
+    email: email.trim().toLowerCase(),
+    password: pass,
+  });
+  if (error) throw error;
+  if (!data.user) throw new Error('Could not sign in.');
+  return { user: normalizeUser(data.user)! };
 };
 
-export const signInWithPopup = async (): Promise<{ user: AppUser | null; data?: any }> => {
-  try {
-    const provider = new GoogleAuthProvider();
-    provider.setCustomParameters({ prompt: 'select_account' });
-    const res = await fbSignInWithPopup(firebaseAuth, provider);
-    return { user: normalizeUser(res.user), data: res };
-  } catch (err: any) {
-    console.warn('Firebase popup signin notice, falling back:', err);
-    throw err;
-  }
+// Supabase OAuth redirects through the current Nightgram origin.
+export const signInWithPopup = async (): Promise<{ user: AppUser | null }> => {
+  const redirectTo = window.location.hostname.endsWith('github.io')
+    ? `${window.location.origin}/Nightgram/`
+    : `${window.location.origin}/`;
+
+  const { data, error } = await supabase.auth.signInWithOAuth({
+    provider: 'google',
+    options: { redirectTo },
+  });
+  if (error) throw error;
+  if (data?.url) window.location.assign(data.url);
+  return { user: null };
 };
 
 export const signInWithRedirect = async (): Promise<void> => {
-  const provider = new GoogleAuthProvider();
-  await fbSignInWithRedirect(firebaseAuth, provider);
+  const redirectTo = window.location.hostname.endsWith('github.io')
+    ? `${window.location.origin}/Nightgram/`
+    : `${window.location.origin}/`;
+  const { data, error } = await supabase.auth.signInWithOAuth({
+    provider: 'google',
+    options: { redirectTo },
+  });
+  if (error) throw error;
+  if (data?.url) window.location.assign(data.url);
 };
 
 export const getRedirectResult = async (): Promise<{ user: AppUser | null } | null> => {
-  const res = await fbGetRedirectResult(firebaseAuth);
-  return res && res.user ? { user: normalizeUser(res.user) } : null;
+  const { data } = await supabase.auth.getSession();
+  return data.session?.user ? { user: normalizeUser(data.session.user) } : null;
 };
 
-export const handleOAuthCallbackInPopup = (): boolean => {
-  return false;
-};
+export const handleOAuthCallbackInPopup = (): boolean => false;
