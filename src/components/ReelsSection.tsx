@@ -47,6 +47,7 @@ export interface ShortVideo {
   isSaved?: boolean;
   timeAgo: string;
   moodTag: string;
+  createdAt?: string;
 }
 
 export const DEFAULT_SHORTS: ShortVideo[] = [
@@ -528,8 +529,8 @@ export function ReelsSection({
             ref={(el) => {
               videoRefs.current[currentIndex] = el;
             }}
-            src={currentShort.videoUrl}
-            poster={currentShort.posterUrl}
+            src={currentShort.videoUrl || undefined}
+            poster={currentShort.posterUrl || 'https://images.unsplash.com/photo-1540959733332-eab4deceeaf7?w=800'}
             loop
             playsInline
             muted={isMuted}
@@ -706,7 +707,7 @@ export function ReelsSection({
                 title={`View @${currentShort.creator.username}'s profile`}
               >
                 <img
-                  src={currentShort.creator.avatar}
+                  src={currentShort.creator.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150'}
                   alt={currentShort.creator.username}
                   className="w-full h-full object-cover rounded-full"
                   referrerPolicy="no-referrer"
@@ -830,7 +831,7 @@ export function ReelsSection({
                 <div className="w-full h-full rounded-full border border-zinc-800 bg-[#0a0a0a] flex items-center justify-center p-[5px]">
                   <div className="w-full h-full rounded-full overflow-hidden border border-white/20">
                     <img
-                      src={currentShort.posterUrl}
+                      src={currentShort.posterUrl || 'https://images.unsplash.com/photo-1540959733332-eab4deceeaf7?w=800'}
                       alt="album"
                       className="w-full h-full object-cover"
                     />
@@ -956,7 +957,11 @@ export function ReelsSection({
                 {(commentsList[currentShort.id] || []).length > 0 ? (
                   commentsList[currentShort.id].map((c, i) => (
                     <div key={`reel-comment-${currentShort.id}-${c.username}-${c.time || i}-${i}`} className="flex items-start space-x-3 text-xs">
-                      <img src={c.avatar} alt={c.username} className="w-8 h-8 rounded-full object-cover flex-shrink-0" />
+                      <img
+                        src={c.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150'}
+                        alt={c.username}
+                        className="w-8 h-8 rounded-full object-cover flex-shrink-0"
+                      />
                       <div className="flex-1">
                         <div className="flex items-center space-x-2">
                           <span className="font-bold text-zinc-200">@{c.username}</span>

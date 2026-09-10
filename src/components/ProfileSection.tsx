@@ -318,7 +318,7 @@ export default function ProfileSection({
           >
             <img
               id="profile-avatar-display-img"
-              src={userProfile.avatar}
+              src={userProfile.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150'}
               alt={userProfile.username}
               className="w-full h-full object-cover rounded-full border-2 border-[#0a0a0f] transition group-hover:brightness-105"
               referrerPolicy="no-referrer"
@@ -598,11 +598,11 @@ export default function ProfileSection({
 
           {/* Highlights List */}
           {highlights.map((hl, hlIndex) => (
-            <div key={`${hl.id}-${hlIndex}`} className="flex flex-col items-center flex-shrink-0 space-y-1 group cursor-pointer">
+            <div key={`profile-highlight-${hl.id || 'hl'}-${hlIndex}`} className="flex flex-col items-center flex-shrink-0 space-y-1 group cursor-pointer">
               <div className="relative">
                 <div className="w-16 h-16 rounded-full p-[2px] bg-gradient-to-tr from-zinc-800 via-zinc-700 to-zinc-900 group-hover:from-cyan-400 group-hover:to-purple-500 transition duration-300">
                   <img
-                    src={hl.coverImage}
+                    src={hl.coverImage || 'https://images.unsplash.com/photo-1514565131-fce0801e5785?w=800'}
                     alt={hl.title}
                     className="w-full h-full object-cover rounded-full border-2 border-[#0a0a0f]"
                     referrerPolicy="no-referrer"
@@ -715,12 +715,12 @@ export default function ProfileSection({
         {displayPosts.length > 0 ? (
           displayPosts.map((post, postIndex) => (
             <div
-              key={`${post.id}-${postIndex}`}
+              key={`profile-grid-post-${post.id || 'post'}-${postIndex}`}
               onClick={() => setSelectedPost(post)}
               className="relative aspect-square bg-[#0c0c14] overflow-hidden cursor-pointer group"
             >
               <img
-                src={post.image}
+                src={post.image || 'https://images.unsplash.com/photo-1514565131-fce0801e5785?w=800'}
                 alt={post.caption}
                 className="w-full h-full object-cover transition duration-300 group-hover:scale-105"
                 referrerPolicy="no-referrer"
@@ -759,7 +759,7 @@ export default function ProfileSection({
             >
               <div className="relative aspect-video w-full">
                 <img
-                  src={selectedPost.image}
+                  src={selectedPost.image || 'https://images.unsplash.com/photo-1514565131-fce0801e5785?w=800'}
                   alt={selectedPost.caption}
                   className="w-full h-full object-cover"
                   referrerPolicy="no-referrer"
@@ -839,7 +839,7 @@ export default function ProfileSection({
               <div className="flex items-center space-x-3">
                 <div className="w-10 h-10 rounded-full overflow-hidden border border-zinc-700/80 shadow-md">
                   <img
-                    src={userProfile.avatar}
+                    src={userProfile.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150'}
                     alt={userProfile.username}
                     className="w-full h-full object-cover"
                     referrerPolicy="no-referrer"
@@ -893,7 +893,7 @@ export default function ProfileSection({
               >
                 <img
                   id="fullscreen-avatar-view-img"
-                  src={userProfile.avatar}
+                  src={userProfile.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150'}
                   alt={userProfile.username}
                   className="max-w-full max-h-[76vh] sm:max-h-[80vh] w-auto h-auto object-contain select-none"
                   referrerPolicy="no-referrer"

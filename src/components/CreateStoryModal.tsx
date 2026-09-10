@@ -519,7 +519,7 @@ export default function CreateStoryModal({ currentUser, onClose, onSubmit }: Cre
                   {selectedFileName ? (
                     <div className="bg-[#101018] border border-cyan-500/40 rounded-xl p-3 flex items-center justify-between space-x-3">
                       <div className="flex items-center space-x-3 overflow-hidden">
-                        <img src={mediaUrl} alt="Thumbnail" className="w-12 h-12 object-cover rounded-lg border border-zinc-700 shrink-0" />
+                        <img src={mediaUrl || 'https://images.unsplash.com/photo-1514565131-fce0801e5785?w=800'} alt="Thumbnail" className="w-12 h-12 object-cover rounded-lg border border-zinc-700 shrink-0" />
                         <div className="overflow-hidden">
                           <div className="flex items-center space-x-1 text-xs font-semibold text-cyan-300">
                             <CheckCircle2 className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
@@ -817,7 +817,7 @@ export default function CreateStoryModal({ currentUser, onClose, onSubmit }: Cre
               {/* Image Layer with CSS Filter & Gradient Overlay */}
               <div className="absolute inset-0 z-0">
                 <img
-                  src={mediaUrl}
+                  src={mediaUrl || 'https://images.unsplash.com/photo-1514565131-fce0801e5785?w=800'}
                   alt="Story Preview"
                   className="w-full h-full object-cover transition-all duration-300"
                   style={{ filter: activeFilter.cssFilter }}

@@ -253,9 +253,9 @@ export default function UserProfileModal({
 
             {userPosts.length > 0 ? (
               <div className="grid grid-cols-3 gap-2">
-                {userPosts.map((post) => (
+                {userPosts.map((post, postIdx) => (
                   <div
-                    key={`modal-post-${post.id}`}
+                    key={`modal-post-${post.id || 'post'}-${postIdx}`}
                     onClick={() => setSelectedPost(post)}
                     className="relative aspect-square rounded-xl overflow-hidden bg-zinc-900 border border-zinc-800/80 group cursor-pointer"
                   >

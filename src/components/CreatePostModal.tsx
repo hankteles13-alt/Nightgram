@@ -418,10 +418,12 @@ export default function CreatePostModal({ currentUser, onClose, onSubmit, onSwit
                   >
                     <div className="flex items-center space-x-3 overflow-hidden">
                       <div className="w-14 h-14 rounded-lg overflow-hidden border border-zinc-700 shrink-0 bg-black">
-                        {imageURL.startsWith('data:video/') ? (
+                        {imageURL && imageURL.startsWith('data:video/') ? (
                           <video src={imageURL} className="w-full h-full object-cover" />
-                        ) : (
+                        ) : imageURL ? (
                           <img src={imageURL} alt="Device Preview" className="w-full h-full object-cover" />
+                        ) : (
+                          <div className="w-full h-full bg-zinc-900" />
                         )}
                       </div>
                       <div className="overflow-hidden">
@@ -558,7 +560,7 @@ export default function CreatePostModal({ currentUser, onClose, onSubmit, onSwit
                     className="w-full bg-[#121218] border border-zinc-800/80 rounded-xl px-3 py-2.5 text-xs text-zinc-300 placeholder-zinc-600 focus:outline-none focus:border-cyan-500/50"
                   />
                 </div>
-                {imageURL && !selectedFileName && (
+                {imageURL && imageURL.trim().length > 0 && !selectedFileName && (
                   <div className="w-full h-32 rounded-xl overflow-hidden border border-zinc-800 bg-black flex items-center justify-center">
                     <img src={imageURL} alt="URL Preview" className="h-full w-full object-cover" />
                   </div>

@@ -32,27 +32,35 @@ service cloud.firestore {
     // Posts collection rules
     match /posts/{postId} {
       allow read: if true;
-      allow create: if isAuthenticated();
+      allow create: if true;
       // Allow update if either the user is the creator, or they are just updating likes/saves/comments array
-      allow update: if isAuthenticated();
+      allow update: if true;
+      allow delete: if isAuthenticated() && resource.data.userId == request.auth.uid;
+    }
+
+    // Shorts / Reels collection rules
+    match /shorts/{shortId} {
+      allow read: if true;
+      allow create: if true;
+      allow update: if true;
       allow delete: if isAuthenticated() && resource.data.userId == request.auth.uid;
     }
 
     // Stories collection rules
     match /stories/{storyId} {
       allow read: if true;
-      allow create: if isAuthenticated();
+      allow create: if true;
       allow update, delete: if isAuthenticated() && resource.data.userId == request.auth.uid;
     }
 
     // Direct Chats & Messages collection rules
     match /chats/{chatId} {
-      allow read: if isAuthenticated();
-      allow create, update: if isAuthenticated();
+      allow read: if true;
+      allow create, update: if true;
       allow delete: if isAuthenticated();
 
       match /messages/{messageId} {
-        allow read, write: if isAuthenticated();
+        allow read, write: if true;
       }
     }
   }

@@ -142,9 +142,9 @@ export default function WelcomeCoverScreen({ onAgree }: WelcomeCoverScreenProps)
               </div>
 
               <div className="divide-y divide-zinc-800/50 overflow-y-auto py-2">
-                {SUPPORTED_LANGUAGES.map((lang) => (
+                {SUPPORTED_LANGUAGES.map((lang, langIdx) => (
                   <button
-                    key={lang.code}
+                    key={`lang-${lang.code}-${langIdx}`}
                     onClick={() => {
                       setSelectedLang(lang);
                       setShowLangModal(false);

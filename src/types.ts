@@ -35,6 +35,7 @@ export interface Story {
   mediaUrl: string;
   caption: string;
   mood?: string;
+  createdAt?: string;
 }
 
 export interface Message {

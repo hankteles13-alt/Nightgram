@@ -673,9 +673,9 @@ export default function CreateShortModal({ currentUser, onClose, onSubmit }: Cre
                     {/* Timer limit selector */}
                     {!isRecording && (
                       <div className="flex items-center gap-1 bg-black/70 backdrop-blur-md p-1 rounded-full border border-zinc-700/50 text-[10px]">
-                        {[15, 30, 60].map((limit) => (
+                        {[15, 30, 60].map((limit, limitIdx) => (
                           <button
-                            key={limit}
+                            key={`rec-limit-${limit}-${limitIdx}`}
                             type="button"
                             onClick={() => setRecordingLimit(limit)}
                             className={`px-2.5 py-0.5 rounded-full transition cursor-pointer ${
@@ -757,12 +757,12 @@ export default function CreateShortModal({ currentUser, onClose, onSubmit }: Cre
               )}
 
               {/* If Video URL is loaded and ready */}
-              {videoUrl && (!isCameraActive || sourceTab !== 'camera') && (
+              {videoUrl && videoUrl.trim() && (!isCameraActive || sourceTab !== 'camera') && (
                 <div className="relative w-full h-full">
                   <video
                     ref={previewVideoRef}
                     src={videoUrl}
-                    poster={posterUrl}
+                    poster={posterUrl || undefined}
                     loop
                     autoPlay
                     muted={isMuted}
@@ -927,9 +927,9 @@ export default function CreateShortModal({ currentUser, onClose, onSubmit }: Cre
                   Quick Nocturnal Presets
                 </span>
                 <div className="grid grid-cols-2 gap-2 max-h-36 overflow-y-auto scrollbar-thin">
-                  {PRESET_SHORT_VIDEOS.map((preset) => (
+                  {PRESET_SHORT_VIDEOS.map((preset, presetIdx) => (
                     <button
-                      key={preset.id}
+                      key={`preset-video-${preset.id}-${presetIdx}`}
                       type="button"
                       onClick={() => handleSelectPreset(preset)}
                       className="p-2 bg-zinc-900 border border-zinc-800 hover:border-cyan-500/50 rounded-xl text-left flex items-center gap-2 transition cursor-pointer group"
@@ -992,9 +992,9 @@ export default function CreateShortModal({ currentUser, onClose, onSubmit }: Cre
                 Mood / Atmosphere
               </label>
               <div className="flex flex-wrap gap-1.5">
-                {SHORT_MOODS.map((mood) => (
+                {SHORT_MOODS.map((mood, moodIdx) => (
                   <button
-                    key={mood}
+                    key={`short-mood-${mood}-${moodIdx}`}
                     type="button"
                     onClick={() => setMoodTag(mood)}
                     className={`px-2.5 py-1 rounded-lg text-xs font-medium transition cursor-pointer ${
@@ -1027,9 +1027,9 @@ export default function CreateShortModal({ currentUser, onClose, onSubmit }: Cre
 
               {!isCustomAudio ? (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 max-h-32 overflow-y-auto scrollbar-thin">
-                  {AUDIO_TRACK_PRESETS.map((track) => (
+                  {AUDIO_TRACK_PRESETS.map((track, trackIdx) => (
                     <button
-                      key={track.code}
+                      key={`audio-track-${track.code}-${trackIdx}`}
                       type="button"
                       onClick={() => {
                         setAudioTitle(track.title);
@@ -1105,9 +1105,9 @@ export default function CreateShortModal({ currentUser, onClose, onSubmit }: Cre
 
               {/* Tag Badges List */}
               <div className="flex flex-wrap gap-1.5 pt-1">
-                {tags.map((tag) => (
+                {tags.map((tag, tagIdx) => (
                   <span
-                    key={tag}
+                    key={`short-tag-${tag}-${tagIdx}`}
                     className="inline-flex items-center gap-1 px-2 py-0.5 bg-cyan-950/60 border border-cyan-500/30 text-cyan-300 text-[11px] rounded-lg"
                   >
                     #{tag}

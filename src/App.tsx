@@ -44,10 +44,9 @@ import { AppSettingsModal } from './components/AppSettingsModal';
 import SearchUsersModal from './components/SearchUsersModal';
 import UserProfileModal from './components/UserProfileModal';
 import { optimizeImageForFirestore } from './lib/imageOptimizer';
-import { auth } from './lib/supabaseAuth';
-import { db } from './lib/supabaseFirestore';
-import { onAuthStateChanged, signOut } from './lib/supabaseAuth';
+import { auth, onAuthStateChanged, signOut } from './lib/supabaseAuth';
 import {
+  db,
   collection,
   query,
   where,
@@ -61,8 +60,8 @@ import {
   deleteDoc,
   addDoc,
   arrayUnion,
-  arrayRemove
-} from './lib/supabaseFirestore';
+  arrayRemove,
+} from './lib/firebase';
 
 export default function App() {
   // Current logged in user (Firebase profile)
@@ -274,14 +273,11 @@ export default function App() {
     return () => unsubscribeProfile();
   }, [currentUser?.uid]);
 
-  // 3. Listen to Posts & Stories in Real-time from Firestore
+  // 3. Listen to Posts, Stories, and Shorts in Real-time from Firestore for all users
   useEffect(() => {
-    if (!currentUser) return;
-
-    // Query posts sorted by creation date
-    const postsQuery = query(collection(db, 'posts'), orderBy('createdAt', 'desc'));
+    // Listen to Posts in Real-time
     const unsubscribePosts = onSnapshot(
-      postsQuery,
+      collection(db, 'posts'),
       (snapshot) => {
         const fetchedPosts: Post[] = [];
         snapshot.forEach((docSnap) => {
@@ -289,7 +285,9 @@ export default function App() {
           fetchedPosts.push({
             id: docSnap.id,
             username: data.username || 'anonymous',
-            userAvatar: data.userAvatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
+            userAvatar:
+              data.userAvatar ||
+              'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
             userId: data.userId || '',
             image: data.image || '',
             caption: data.caption || '',
@@ -297,26 +295,33 @@ export default function App() {
             time: data.time || 'Midnight',
             likes: data.likedBy ? data.likedBy.length : (data.likes || 0),
             comments: data.comments || [],
-            isLiked: data.likedBy ? data.likedBy.includes(currentUser.uid) : false,
-            isSaved: data.savedBy ? data.savedBy.includes(currentUser.uid) : false,
+            isLiked: currentUser?.uid ? (data.likedBy ? data.likedBy.includes(currentUser.uid) : false) : false,
+            isSaved: currentUser?.uid ? (data.savedBy ? data.savedBy.includes(currentUser.uid) : false) : false,
             mood: data.mood || 'Vaporwave',
             tags: data.tags || [],
             likedBy: data.likedBy || [],
             savedBy: data.savedBy || [],
+            createdAt: data.createdAt || '',
           });
         });
+
+        // Sort descending by created date
+        fetchedPosts.sort((a: any, b: any) => {
+          const timeA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+          const timeB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+          return timeB - timeA;
+        });
+
         setPosts(fetchedPosts);
       },
       (err) => {
         console.warn('Firestore posts snapshot warning:', err);
-        setPosts([]);
       }
     );
 
-    // Query stories sorted by creation date
-    const storiesQuery = query(collection(db, 'stories'), orderBy('createdAt', 'desc'));
+    // Listen to Stories in Real-time
     const unsubscribeStories = onSnapshot(
-      storiesQuery,
+      collection(db, 'stories'),
       (snapshot) => {
         const fetchedStories: Story[] = [];
         snapshot.forEach((docSnap) => {
@@ -324,22 +329,99 @@ export default function App() {
           fetchedStories.push({
             id: docSnap.id,
             username: data.username || 'anonymous',
-            userAvatar: data.userAvatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
+            userAvatar:
+              data.userAvatar ||
+              'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
             userId: data.userId || '',
             mediaUrl: data.mediaUrl || '',
             caption: data.caption || '',
             mood: data.mood || 'Cozy',
+            createdAt: data.createdAt || '',
           });
         });
+
+        fetchedStories.sort((a: any, b: any) => {
+          const timeA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+          const timeB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+          return timeB - timeA;
+        });
+
         setStories(fetchedStories);
       },
       (err) => {
         console.warn('Firestore stories snapshot warning:', err);
-        setStories([]);
       }
     );
 
-    // Listen to user's whisper box (messages) in real-time
+    // Listen to Shorts (Video Reels) in Real-time from Firestore
+    const unsubscribeShorts = onSnapshot(
+      collection(db, 'shorts'),
+      (snapshot) => {
+        const fetchedShorts: ShortVideo[] = [];
+        snapshot.forEach((docSnap) => {
+          const data = docSnap.data();
+          fetchedShorts.push({
+            id: docSnap.id,
+            creator: data.creator || {
+              username: data.username || 'dreamer',
+              displayName: data.displayName || 'Midnight Dreamer',
+              avatar:
+                data.userAvatar ||
+                'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150',
+              badge: '🌙 Night Owl',
+              isFollowing: false,
+            },
+            videoUrl: data.videoUrl || '',
+            posterUrl: data.posterUrl || '',
+            caption: data.caption || 'Nightgram Short',
+            tags: data.tags || ['nightgram', 'shorts'],
+            audioTrack: data.audioTrack || {
+              title: 'Midnight Radio',
+              artist: data.username || 'Nightgram',
+              codeNumber: '0001',
+            },
+            likes: data.likedBy ? data.likedBy.length : (data.likes || 0),
+            commentsCount: data.commentsCount || (data.comments ? data.comments.length : 0),
+            sharesCount: data.sharesCount || 0,
+            savesCount: data.savedBy ? data.savedBy.length : (data.savesCount || 0),
+            isLiked: currentUser?.uid ? (data.likedBy ? data.likedBy.includes(currentUser.uid) : false) : false,
+            isSaved: currentUser?.uid ? (data.savedBy ? data.savedBy.includes(currentUser.uid) : false) : false,
+            timeAgo: data.timeAgo || 'Just now',
+            moodTag: data.moodTag || 'Cyber City',
+            createdAt: data.createdAt || '',
+          });
+        });
+
+        fetchedShorts.sort((a: any, b: any) => {
+          const timeA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+          const timeB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+          return timeB - timeA;
+        });
+
+        // Merge with preset default shorts so there are always variety
+        const combined = [...fetchedShorts];
+        for (const def of DEFAULT_SHORTS) {
+          if (!combined.some((s) => s.id === def.id)) {
+            combined.push(def);
+          }
+        }
+        setShorts(combined);
+      },
+      (err) => {
+        console.warn('Firestore shorts snapshot warning:', err);
+      }
+    );
+
+    return () => {
+      unsubscribePosts();
+      unsubscribeStories();
+      unsubscribeShorts();
+    };
+  }, [currentUser?.uid]);
+
+  // 4. Listen to user's whisper box (messages) in real-time
+  useEffect(() => {
+    if (!currentUser?.uid) return;
     const messagesQuery = query(collection(db, 'users', currentUser.uid, 'messages'), orderBy('createdAt', 'asc'));
     const unsubscribeMessages = onSnapshot(
       messagesQuery,
@@ -358,15 +440,10 @@ export default function App() {
       },
       (err) => {
         console.warn('Firestore user messages snapshot warning:', err);
-        setMessages([]);
       }
     );
 
-    return () => {
-      unsubscribePosts();
-      unsubscribeStories();
-      unsubscribeMessages();
-    };
+    return () => unsubscribeMessages();
   }, [currentUser?.uid]);
 
   // Synchronize notifications to localStorage
@@ -646,16 +723,87 @@ export default function App() {
     }
   };
 
-  const handleCreateShortSubmit = (newShort: ShortVideo) => {
-    setShorts((prev) => {
-      const updated = [newShort, ...prev];
+  const handleCreateShortSubmit = async (newShort: ShortVideo) => {
+    let safePoster = newShort.posterUrl;
+    if (safePoster && safePoster.startsWith('data:image') && safePoster.length > 50000) {
       try {
-        localStorage.setItem('nightgram_shorts', JSON.stringify(updated));
-      } catch (e) {
-        console.error('Error saving shorts to localStorage', e);
-      }
-      return updated;
-    });
+        safePoster = await optimizeImageForFirestore(safePoster, {
+          maxDimension: 720,
+          quality: 0.8,
+          maxSizeBytes: 120000,
+        });
+      } catch {}
+    }
+
+    let safeAvatar =
+      currentUser?.avatar ||
+      'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80';
+    if (safeAvatar && safeAvatar.startsWith('data:image') && safeAvatar.length > 50000) {
+      try {
+        safeAvatar = await optimizeImageForFirestore(safeAvatar, {
+          maxDimension: 250,
+          quality: 0.8,
+          maxSizeBytes: 60000,
+        });
+      } catch {}
+    }
+
+    const shortPayload = {
+      userId: currentUser?.uid || 'community_user',
+      username: currentUser?.username || 'dreamer',
+      displayName: currentUser?.displayName || 'A Midnight Dreamer',
+      userAvatar: safeAvatar,
+      creator: {
+        username: currentUser?.username || 'dreamer',
+        displayName: currentUser?.displayName || 'A Midnight Dreamer',
+        avatar: safeAvatar,
+        badge: '🌙 Night Owl',
+        isFollowing: false,
+      },
+      videoUrl: newShort.videoUrl || '',
+      posterUrl: safePoster || 'https://images.unsplash.com/photo-1514565131-fce0801e5785?w=800',
+      caption: newShort.caption || 'Nightgram Short',
+      tags: newShort.tags || ['nightgram', 'shorts'],
+      audioTrack: newShort.audioTrack || {
+        title: 'Midnight Radio',
+        artist: currentUser?.username || 'Nightgram',
+        codeNumber: '0001',
+      },
+      likes: 1,
+      likedBy: currentUser?.uid ? [currentUser.uid] : [],
+      commentsCount: 0,
+      sharesCount: 0,
+      savesCount: 0,
+      savedBy: [],
+      timeAgo: 'Just now',
+      moodTag: newShort.moodTag || 'Cyber City',
+      createdAt: new Date().toISOString(),
+    };
+
+    try {
+      const docRef = await addDoc(collection(db, 'shorts'), shortPayload);
+      const optimisticShort: ShortVideo = {
+        ...newShort,
+        id: docRef.id,
+        posterUrl: safePoster || 'https://images.unsplash.com/photo-1514565131-fce0801e5785?w=800',
+        creator: {
+          username: currentUser?.username || 'dreamer',
+          displayName: currentUser?.displayName || 'A Midnight Dreamer',
+          avatar: safeAvatar,
+          badge: '🌙 Night Owl',
+          isFollowing: false,
+        },
+      };
+
+      setShorts((prev) => [optimisticShort, ...prev.filter((s) => s.id !== docRef.id)]);
+    } catch (err) {
+      console.warn('Firestore short saving notice (fallback local):', err);
+      setShorts((prev) => [newShort, ...prev]);
+    }
+
+    try {
+      localStorage.setItem('nightgram_shorts', JSON.stringify([newShort, ...shorts]));
+    } catch {}
 
     setActiveTab('shorts');
     setShowCreateShortModal(false);
@@ -667,9 +815,7 @@ export default function App() {
         type: 'system',
         user: {
           username: currentUser?.username || 'you',
-          avatar:
-            currentUser?.avatar ||
-            'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
+          avatar: safeAvatar,
         },
         content: '🎬 Your short video has been published to Reels!',
         time: 'Just now',

@@ -17,7 +17,7 @@ export default function StoriesSection({ stories, currentUser, onOpenCreateStory
   const [storyReplyText, setStoryReplyText] = useState('');
   const [sentReplyNotice, setSentReplyNotice] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
-  const [floatingHearts, setFloatingHearts] = useState<{ id: number; x: number }[]>([]);
+  const [floatingHearts, setFloatingHearts] = useState<{ id: string; x: number }[]>([]);
   const [isPaused, setIsPaused] = useState(false);
   const progressIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -94,7 +94,7 @@ export default function StoriesSection({ stories, currentUser, onOpenCreateStory
   const handleHeartClick = (storyId: string, e: React.MouseEvent) => {
     e.stopPropagation();
     setIsLikedStory((prev) => ({ ...prev, [storyId]: !prev[storyId] }));
-    const newHeart = { id: Date.now(), x: Math.random() * 40 - 20 };
+    const newHeart = { id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, x: Math.random() * 40 - 20 };
     setFloatingHearts((prev) => [...prev, newHeart]);
     setTimeout(() => {
       setFloatingHearts((prev) => prev.filter((h) => h.id !== newHeart.id));
@@ -140,13 +140,13 @@ export default function StoriesSection({ stories, currentUser, onOpenCreateStory
         {/* Other active stories with iconic Instagram gradient story ring */}
         {stories.map((story, index) => {
           const storyAvatar =
-            currentUser && (story.userId === currentUser.uid || story.username === currentUser.username)
+            (currentUser && (story.userId === currentUser.uid || story.username === currentUser.username)
               ? currentUser.avatar
-              : story.userAvatar;
+              : story.userAvatar) || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80';
 
           return (
             <div
-              key={`${story.id}-${index}`}
+              key={`story-item-${story.id || 'st'}-${index}`}
               id={`story-bubble-${story.id}`}
               onClick={() => setActiveStoryIdx(index)}
               className="flex flex-col items-center space-y-1.5 flex-shrink-0 cursor-pointer group select-none"
@@ -156,7 +156,7 @@ export default function StoriesSection({ stories, currentUser, onOpenCreateStory
                 <div className="w-[66px] h-[66px] rounded-full p-[2.5px] bg-gradient-to-tr from-[#f58529] via-[#dd2a7b] to-[#8134af] transition-all duration-300 group-hover:scale-105 shadow-[0_0_12px_rgba(221,42,123,0.35)]">
                   <div className="w-full h-full rounded-full p-[2px] bg-black">
                     <img
-                      src={storyAvatar}
+                      src={storyAvatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80'}
                       alt={story.username}
                       className="w-full h-full object-cover rounded-full"
                       referrerPolicy="no-referrer"
@@ -232,7 +232,7 @@ export default function StoriesSection({ stories, currentUser, onOpenCreateStory
                     {/* Story Media Background filling 9:16 container */}
                     <div className="absolute inset-0 z-0 bg-black">
                       <img
-                        src={stories[activeStoryIdx].mediaUrl}
+                        src={stories[activeStoryIdx].mediaUrl || 'https://images.unsplash.com/photo-1514565131-fce0801e5785?w=800'}
                         alt="Story Content"
                         className="w-full h-full object-cover"
                         referrerPolicy="no-referrer"
@@ -282,7 +282,7 @@ export default function StoriesSection({ stories, currentUser, onOpenCreateStory
                       <div className="flex items-center justify-between" id="story-header-details">
                         <div className="flex items-center space-x-2.5 min-w-0">
                           <img
-                            src={stories[activeStoryIdx].userAvatar}
+                            src={stories[activeStoryIdx].userAvatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80'}
                             alt={stories[activeStoryIdx].username}
                             className="w-8 h-8 object-cover rounded-full border border-white/50 shadow-md"
                             referrerPolicy="no-referrer"

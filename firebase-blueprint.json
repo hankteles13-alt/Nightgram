@@ -43,6 +43,27 @@
         "createdAt": "timestamp"
       }
     },
+    "shorts": {
+      "description": "Short nocturnal video reels visible to all users across the app",
+      "fields": {
+        "userId": "string",
+        "creator": "map of { username, displayName, avatar, badge }",
+        "videoUrl": "string",
+        "posterUrl": "string",
+        "caption": "string",
+        "tags": "array of strings",
+        "audioTrack": "map of { title, artist, codeNumber }",
+        "likes": "number",
+        "likedBy": "array of strings (user UIDs)",
+        "commentsCount": "number",
+        "sharesCount": "number",
+        "savesCount": "number",
+        "savedBy": "array of strings (user UIDs)",
+        "timeAgo": "string",
+        "moodTag": "string",
+        "createdAt": "timestamp"
+      }
+    },
     "chats": {
       "description": "Direct chat rooms between users",
       "fields": {

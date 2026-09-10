@@ -344,8 +344,8 @@ export default function PrivacySettings({
               {blockedUsers.length === 0 ? (
                 <p className="text-xs text-zinc-500 text-center py-4">No accounts currently blocked</p>
               ) : (
-                blockedUsers.map((user) => (
-                  <div key={user} className="py-2 flex items-center justify-between text-xs">
+                blockedUsers.map((user, uIdx) => (
+                  <div key={`blocked-user-${user}-${uIdx}`} className="py-2 flex items-center justify-between text-xs">
                     <span className="text-zinc-300">@{user}</span>
                     <button
                       type="button"

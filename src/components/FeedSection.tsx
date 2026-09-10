@@ -316,7 +316,7 @@ export default function FeedSection({
                       }`}
                     >
                       <img
-                        src={post.userAvatar}
+                        src={post.userAvatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80'}
                         alt={post.username}
                         className="w-8.5 h-8.5 rounded-full object-cover border border-[#0b0b14]"
                       />
@@ -379,7 +379,7 @@ export default function FeedSection({
                 onDoubleClick={() => handleDoubleTap(post.id, post.isFromDb)}
               >
                 <img
-                  src={post.images[postSlide] || post.images[0]}
+                  src={post.images[postSlide] || post.images[0] || 'https://images.unsplash.com/photo-1514565131-fce0801e5785?w=800'}
                   alt={post.caption}
                   className="w-full h-full object-cover transition-opacity duration-200"
                   loading="lazy"
@@ -809,7 +809,7 @@ export default function FeedSection({
                       >
                         <div className="relative">
                           <img
-                            src={friend.avatar}
+                            src={friend.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150'}
                             alt={friend.name}
                             className={`w-14 h-14 rounded-full object-cover border-2 transition ${
                               isSent ? 'border-emerald-400 scale-95' : 'border-zinc-700 group-hover:border-cyan-400'

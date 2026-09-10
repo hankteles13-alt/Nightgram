@@ -153,11 +153,11 @@ export default function SearchUsersModal({
                 <span>Tuning into citizen directory...</span>
               </div>
             ) : filteredUsers.length > 0 ? (
-              filteredUsers.map((user) => {
+              filteredUsers.map((user, userIdx) => {
                 const isMe = currentUser?.uid === user.uid || currentUser?.username === user.username;
                 return (
                   <div
-                    key={`search-user-${user.uid || user.username}`}
+                    key={`search-user-${user.uid || user.username || 'usr'}-${userIdx}`}
                     id={`search-user-item-${user.username}`}
                     onClick={() => {
                       onSelectUser(user);
