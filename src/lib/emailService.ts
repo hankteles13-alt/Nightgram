@@ -24,6 +24,18 @@ export function getWebmailUrl(email: string): { name: string; url: string; searc
   return { name: domain ? `${domain.split('.')[0].toUpperCase()} Mail` : 'Webmail', url: `https://${domain || 'mail.google.com'}`, searchUrl: `https://${domain || 'mail.google.com'}` };
 }
 
+async function getFunctionErrorMessage(error: any, fallback: string): Promise<string> {
+  if (error?.context && typeof error.context.json === 'function') {
+    try {
+      const body = await error.context.json();
+      if (body?.error) return String(body.error);
+    } catch {
+      // Fall through to the SDK error message.
+    }
+  }
+  return error?.message || fallback;
+}
+
 export async function sendVerificationCodeToEmail(
   targetEmail: string,
   _code?: string,
@@ -44,7 +56,7 @@ export async function sendVerificationCodeToEmail(
     },
   });
 
-  if (error) throw new Error(error.message || 'Could not send the verification email.');
+  if (error) throw new Error(await getFunctionErrorMessage(error, 'Could not send the verification email.'));
   if (!data?.success) throw new Error(data?.error || 'Could not send the verification email.');
 
   return {
@@ -65,7 +77,7 @@ export async function verifyVerificationCode(targetEmail: string, code: string) 
     body: { action: 'verify', email: cleanEmail, code: code.trim() },
   });
 
-  if (error) throw new Error(error.message || 'Could not verify the security code.');
+  if (error) throw new Error(await getFunctionErrorMessage(error, 'Could not verify the security code.'));
   if (!data?.success) throw new Error(data?.error || 'Invalid verification code.');
   return data as { success: true; verifiedAt: string };
 }
