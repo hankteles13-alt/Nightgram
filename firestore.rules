@@ -55,13 +55,16 @@ service cloud.firestore {
 
     // Direct Chats & Messages collection rules
     match /chats/{chatId} {
-      allow read: if true;
-      allow create, update: if true;
-      allow delete: if isAuthenticated();
+      allow read, write: if true;
 
       match /messages/{messageId} {
         allow read, write: if true;
       }
+    }
+
+    // Health check test connection rule
+    match /test/{docId} {
+      allow read: if true;
     }
   }
 }

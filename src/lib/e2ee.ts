@@ -3,12 +3,23 @@
 const E2EE_PREFIX = '🔐 [E2EE-AES-256] ';
 const APP_E2EE_SALT = 'nightgram_e2ee_zero_knowledge_salt_2026';
 
+function getCrypto(): Crypto {
+  if (typeof window !== 'undefined' && window.crypto) {
+    return window.crypto;
+  }
+  if (typeof globalThis !== 'undefined' && (globalThis as any).crypto) {
+    return (globalThis as any).crypto;
+  }
+  throw new Error('Web Crypto API is not available');
+}
+
 /**
  * Derives an AES-256-GCM key derived for a given chat room using PBKDF2
  */
 async function deriveChatKey(chatId: string): Promise<CryptoKey> {
+  const cryptoObj = getCrypto();
   const enc = new TextEncoder();
-  const rawKeyMaterial = await window.crypto.subtle.importKey(
+  const rawKeyMaterial = await cryptoObj.subtle.importKey(
     'raw',
     enc.encode(chatId + '_nightgram_secret_master_seed'),
     { name: 'PBKDF2' },
@@ -16,7 +27,7 @@ async function deriveChatKey(chatId: string): Promise<CryptoKey> {
     ['deriveKey']
   );
 
-  return window.crypto.subtle.deriveKey(
+  return cryptoObj.subtle.deriveKey(
     {
       name: 'PBKDF2',
       salt: enc.encode(APP_E2EE_SALT),
@@ -37,11 +48,12 @@ async function deriveChatKey(chatId: string): Promise<CryptoKey> {
 export async function encryptMessageText(plaintext: string, chatId: string): Promise<string> {
   if (!plaintext) return '';
   try {
+    const cryptoObj = getCrypto();
     const key = await deriveChatKey(chatId);
     const enc = new TextEncoder();
-    const iv = window.crypto.getRandomValues(new Uint8Array(12)); // 96-bit IV for AES-GCM
+    const iv = cryptoObj.getRandomValues(new Uint8Array(12)); // 96-bit IV for AES-GCM
 
-    const ciphertextBuffer = await window.crypto.subtle.encrypt(
+    const ciphertextBuffer = await cryptoObj.subtle.encrypt(
       { name: 'AES-GCM', iv },
       key,
       enc.encode(plaintext)
@@ -58,7 +70,7 @@ export async function encryptMessageText(plaintext: string, chatId: string): Pro
     for (let i = 0; i < len; i++) {
       binary += String.fromCharCode(combined[i]);
     }
-    const base64Payload = btoa(binary);
+    const base64Payload = typeof btoa === 'function' ? btoa(binary) : Buffer.from(combined).toString('base64');
 
     return `${E2EE_PREFIX}${base64Payload}`;
   } catch (err) {
@@ -78,8 +90,14 @@ export async function decryptMessageText(payload: string, chatId: string): Promi
   }
 
   try {
+    const cryptoObj = getCrypto();
     const base64Data = payload.substring(E2EE_PREFIX.length).trim();
-    const binary = atob(base64Data);
+    let binary = '';
+    if (typeof atob === 'function') {
+      binary = atob(base64Data);
+    } else {
+      binary = Buffer.from(base64Data, 'base64').toString('binary');
+    }
     const bytes = new Uint8Array(binary.length);
     for (let i = 0; i < binary.length; i++) {
       bytes[i] = binary.charCodeAt(i);
@@ -89,7 +107,7 @@ export async function decryptMessageText(payload: string, chatId: string): Promi
     const ciphertext = bytes.slice(12);
 
     const key = await deriveChatKey(chatId);
-    const decryptedBuffer = await window.crypto.subtle.decrypt(
+    const decryptedBuffer = await cryptoObj.subtle.decrypt(
       { name: 'AES-GCM', iv },
       key,
       ciphertext

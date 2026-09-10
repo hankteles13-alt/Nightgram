@@ -88,6 +88,8 @@ export interface ChatRoom {
   participantProfiles: { [uid: string]: ChatParticipantProfile };
   lastMessage?: string;
   lastMessageTime?: string;
+  lastSenderId?: string;
+  unreadBy?: string[];
   updatedAt?: any;
   isAICompanion?: boolean;
 }

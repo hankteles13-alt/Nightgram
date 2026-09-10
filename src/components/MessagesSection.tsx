@@ -91,7 +91,9 @@ import {
   onSnapshot,
   query,
   orderBy,
-  where
+  where,
+  arrayUnion,
+  arrayRemove
 } from '../lib/supabaseFirestore';
 import { fetchAiCompanionReply, type ChatTurn } from '../lib/aiCompanion';
 
@@ -520,35 +522,16 @@ export default function MessagesSection({
         };
 
         await addDoc(messagesRef, msgPayload);
+        const partnerUid = currentDirectChat.participants?.find((id) => id !== currentUser.uid) ||
+          currentDirectChat.id.split('_').find((id) => id !== currentUser.uid);
+
         await updateDoc(doc(db, 'chats', currentDirectChat.id), {
           lastMessage: `🎤 Voice Note (${durationFormatted})`,
           lastMessageTime: nowFormatted,
+          lastSenderId: currentUser.uid,
           updatedAt: new Date().toISOString(),
+          unreadBy: partnerUid ? arrayUnion(partnerUid) : [],
         });
-
-        if (activePartner) {
-          setTimeout(() => {
-            setIsPartnerTyping(true);
-            setTimeout(async () => {
-              setIsPartnerTyping(false);
-              const partnerVoiceReplies = [
-                'Listened to your voice note! Clear and awesome vibe! 🎧✨',
-                'Loved your voice note! Thanks for sharing. 💖',
-                'Got your voice message! Speaks louder than words! 🔥',
-              ];
-              const replyText = partnerVoiceReplies[Math.floor(Math.random() * partnerVoiceReplies.length)];
-              const partnerEncrypted = await encryptMessageText(replyText, currentDirectChat.id);
-              await addDoc(messagesRef, {
-                chatId: currentDirectChat.id,
-                senderId: activePartner.uid,
-                senderName: activePartner.displayName || activePartner.username,
-                senderAvatar: activePartner.avatar,
-                text: partnerEncrypted,
-                createdAt: new Date().toISOString(),
-              });
-            }, 2200);
-          }, 600);
-        }
       } catch (err) {
         console.error('Error sending voice note in direct chat:', err);
       }
@@ -691,58 +674,48 @@ export default function MessagesSection({
       const q = query(messagesRef, orderBy('createdAt', 'asc'));
 
       const unsubscribe = onSnapshot(q, async (snapshot) => {
-        const rawMsgs: {
-          id: string;
-          chatId: string;
-          senderId: string;
-          senderName: string;
-          senderAvatar: string;
-          rawText: string;
-          imageUrl?: string;
-          createdAt: any;
-          formattedTime: string;
-        }[] = [];
-
-        snapshot.forEach((docSnap) => {
-          const data = docSnap.data();
-          let formattedTime = 'Just now';
-          if (data.createdAt) {
-            const d = new Date(data.createdAt);
-            if (!isNaN(d.getTime())) {
-              formattedTime = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-            }
-          }
-          rawMsgs.push({
-            id: docSnap.id,
-            chatId: activeChatId,
-            senderId: data.senderId,
-            senderName: data.senderName,
-            senderAvatar: data.senderAvatar,
-            rawText: data.text || '',
-            imageUrl: data.imageUrl || undefined,
-            createdAt: data.createdAt,
-            formattedTime,
-          });
-        });
-
         const decryptedMsgs: ChatMessage[] = await Promise.all(
-          rawMsgs.map(async (m) => {
-            const decryptedText = await decryptMessageText(m.rawText, activeChatId);
+          snapshot.docs.map(async (docSnap) => {
+            const data = docSnap.data();
+            let formattedTime = 'Just now';
+            if (data.createdAt) {
+              const d = new Date(data.createdAt);
+              if (!isNaN(d.getTime())) {
+                formattedTime = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+              }
+            }
+            const rawText = data.text || '';
+            const decryptedText = await decryptMessageText(rawText, activeChatId);
+
             return {
-              id: m.id,
-              chatId: m.chatId,
-              senderId: m.senderId,
-              senderName: m.senderName,
-              senderAvatar: m.senderAvatar,
+              ...data,
+              id: docSnap.id,
+              chatId: activeChatId,
+              senderId: data.senderId,
+              senderName: data.senderName,
+              senderAvatar: data.senderAvatar,
               text: decryptedText,
-              imageUrl: m.imageUrl,
-              createdAt: m.createdAt,
-              timestampFormatted: m.formattedTime,
-            };
+              imageUrl: data.imageUrl,
+              createdAt: data.createdAt,
+              timestampFormatted: formattedTime,
+              replyTo: data.replyTo,
+              pollData: data.pollData,
+              isSticker: data.isSticker,
+              stickerUrl: data.stickerUrl,
+              audioUrl: data.audioUrl,
+              audioDuration: data.audioDuration,
+            } as ChatMessage;
           })
         );
 
         setChatMessages(decryptedMsgs);
+
+        // Mark chat as read if user is currently inside this room
+        if (currentUser?.uid && activeChatId) {
+          updateDoc(doc(db, 'chats', activeChatId), {
+            unreadBy: arrayRemove(currentUser.uid),
+          }).catch(() => {});
+        }
       }, (err) => {
         console.error('Error fetching chat messages:', err);
       });
@@ -751,7 +724,7 @@ export default function MessagesSection({
     } catch (err) {
       console.error('Chat messages snapshot error:', err);
     }
-  }, [activeChatId]);
+  }, [activeChatId, currentUser?.uid]);
 
   // 3. Handle Auto-Opening Chat from targetChatUser prop
   useEffect(() => {
@@ -759,19 +732,38 @@ export default function MessagesSection({
 
     const initiateTargetChat = async () => {
       let targetUid = targetChatUser.uid;
+      let targetProfile = {
+        username: targetChatUser.username,
+        displayName: targetChatUser.displayName || targetChatUser.username,
+        avatar: targetChatUser.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
+      };
 
-      // If uid not directly passed, query user by username
-      if (!targetUid) {
-        try {
-          const usersRef = collection(db, 'users');
-          const q = query(usersRef, where('username', '==', targetChatUser.username));
-          const snap = await getDocs(q);
-          if (!snap.empty) {
-            targetUid = snap.docs[0].id;
+      try {
+        const usersRef = collection(db, 'users');
+        const q = query(usersRef, where('username', '==', targetChatUser.username));
+        const snap = await getDocs(q);
+        if (!snap.empty) {
+          const docSnap = snap.docs[0];
+          targetUid = docSnap.id;
+          const uData = docSnap.data();
+          targetProfile = {
+            username: uData.username || targetProfile.username,
+            displayName: uData.displayName || targetProfile.displayName,
+            avatar: uData.avatar || targetProfile.avatar,
+          };
+        } else if (targetUid) {
+          const uDoc = await getDoc(doc(db, 'users', targetUid));
+          if (uDoc.exists()) {
+            const uData = uDoc.data();
+            targetProfile = {
+              username: uData.username || targetProfile.username,
+              displayName: uData.displayName || targetProfile.displayName,
+              avatar: uData.avatar || targetProfile.avatar,
+            };
           }
-        } catch (e) {
-          console.error(e);
         }
+      } catch (e) {
+        console.error('Error resolving target user for chat:', e);
       }
 
       if (targetUid && targetUid !== currentUser.uid) {
@@ -792,17 +784,39 @@ export default function MessagesSection({
               },
               [targetUid]: {
                 uid: targetUid,
-                username: targetChatUser.username,
-                displayName: targetChatUser.displayName || targetChatUser.username,
-                avatar: targetChatUser.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
+                username: targetProfile.username,
+                displayName: targetProfile.displayName,
+                avatar: targetProfile.avatar,
               },
             },
             lastMessage: 'Chat started',
             lastMessageTime: 'Just now',
             updatedAt: new Date().toISOString(),
+            unreadBy: [],
+          });
+        } else {
+          // Ensure participants and participant profiles are up to date
+          const existingData = chatSnap.data();
+          const currentParticipants = existingData.participants || [];
+          const mergedParticipants = Array.from(new Set([...currentParticipants, currentUser.uid, targetUid]));
+          await updateDoc(chatRef, {
+            participants: mergedParticipants,
+            [`participantProfiles.${currentUser.uid}`]: {
+              uid: currentUser.uid,
+              username: currentUser.username,
+              displayName: currentUser.displayName,
+              avatar: currentUser.avatar,
+            },
+            [`participantProfiles.${targetUid}`]: {
+              uid: targetUid,
+              username: targetProfile.username,
+              displayName: targetProfile.displayName,
+              avatar: targetProfile.avatar,
+            },
           });
         }
         setActiveChatId(chatId);
+        setActiveDemoChat(null);
         setMobileView('chat');
       }
 
@@ -828,11 +842,11 @@ export default function MessagesSection({
       const list: UserProfile[] = [];
       usersSnap.forEach((docSnap) => {
         const data = docSnap.data();
-        if (data.uid !== currentUser?.uid) {
+        if (docSnap.id !== currentUser?.uid && data.uid !== currentUser?.uid) {
           list.push({
             uid: docSnap.id,
             username: data.username || 'dreamer',
-            displayName: data.displayName || 'A Midnight Dreamer',
+            displayName: data.displayName || data.username || 'A Midnight Dreamer',
             avatar: data.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
             bio: data.bio || '',
             followers: data.followers || 0,
@@ -878,10 +892,12 @@ export default function MessagesSection({
         lastMessage: 'Chat started',
         lastMessageTime: 'Just now',
         updatedAt: new Date().toISOString(),
+        unreadBy: [],
       });
     }
 
     setActiveChatId(chatId);
+    setActiveDemoChat(null);
     setMobileView('chat');
     setShowNewChatModal(false);
   };
@@ -891,6 +907,11 @@ export default function MessagesSection({
     setActiveChatId(id);
     setActiveDemoChat(null);
     setMobileView('chat');
+    if (currentUser?.uid) {
+      updateDoc(doc(db, 'chats', id), {
+        unreadBy: arrayRemove(currentUser.uid),
+      }).catch(() => {});
+    }
   };
 
   const handleSelectDemoChat = (demoChat: any) => {
@@ -901,17 +922,47 @@ export default function MessagesSection({
 
   // Identify active chat details
   const currentAiCompanion = AI_COMPANIONS.find((c) => c.id === activeChatId);
-  const currentDirectChat = directChats.find((c) => c.id === activeChatId);
+  const currentDirectChat =
+    directChats.find((c) => c.id === activeChatId) ||
+    (activeChatId && !AI_COMPANIONS.some((c) => c.id === activeChatId) && !activeDemoChat
+      ? ({
+          id: activeChatId,
+          participants: activeChatId.split('_'),
+          participantProfiles: {},
+        } as unknown as ChatRoom)
+      : null);
 
   // Helper to get partner profile in direct chat
   const getPartnerProfile = (chat: ChatRoom) => {
     if (!currentUser?.uid) return null;
-    const partnerUid = chat.participants.find((id) => id !== currentUser.uid);
-    if (!partnerUid || !chat.participantProfiles) return null;
-    return chat.participantProfiles[partnerUid];
+    const partnerUid = chat.participants?.find((id) => id !== currentUser.uid);
+    if (chat.participantProfiles && partnerUid && chat.participantProfiles[partnerUid]) {
+      return chat.participantProfiles[partnerUid];
+    }
+    if (chat.participantProfiles) {
+      const otherKey = Object.keys(chat.participantProfiles).find((k) => k !== currentUser.uid);
+      if (otherKey && chat.participantProfiles[otherKey]) {
+        return chat.participantProfiles[otherKey];
+      }
+    }
+    return null;
   };
 
-  const activePartner = currentDirectChat ? getPartnerProfile(currentDirectChat) : null;
+  const activePartner = useMemo(() => {
+    if (currentDirectChat) {
+      const p = getPartnerProfile(currentDirectChat);
+      if (p) return p;
+    }
+    if (targetChatUser && targetChatUser.username) {
+      return {
+        uid: targetChatUser.uid || '',
+        username: targetChatUser.username,
+        displayName: targetChatUser.displayName || targetChatUser.username,
+        avatar: targetChatUser.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
+      } as UserProfile;
+    }
+    return null;
+  }, [currentDirectChat, targetChatUser, currentUser?.uid]);
 
   const activeContactInfo = activeDemoChat
     ? {
@@ -1047,10 +1098,15 @@ export default function MessagesSection({
           createdAt: new Date().toISOString(),
         });
 
+        const partnerUid = currentDirectChat.participants?.find((id) => id !== currentUser.uid) ||
+          currentDirectChat.id.split('_').find((id) => id !== currentUser.uid);
+
         await updateDoc(doc(db, 'chats', currentDirectChat.id), {
           lastMessage: `💟 [Sticker] ${sticker.name}`,
           lastMessageTime: nowFormatted,
+          lastSenderId: currentUser.uid,
           updatedAt: new Date().toISOString(),
+          unreadBy: partnerUid ? arrayUnion(partnerUid) : [],
         });
       } catch (err) {
         console.error('Error sending sticker:', err);
@@ -1099,10 +1155,15 @@ export default function MessagesSection({
           createdAt: new Date().toISOString(),
         });
 
+        const partnerUid = currentDirectChat.participants?.find((id) => id !== currentUser.uid) ||
+          currentDirectChat.id.split('_').find((id) => id !== currentUser.uid);
+
         await updateDoc(doc(db, 'chats', currentDirectChat.id), {
           lastMessage: `📊 Poll: ${poll.question}`,
           lastMessageTime: nowFormatted,
+          lastSenderId: currentUser.uid,
           updatedAt: new Date().toISOString(),
+          unreadBy: partnerUid ? arrayUnion(partnerUid) : [],
         });
       } catch (err) {
         console.error('Error creating poll:', err);
@@ -1282,56 +1343,17 @@ export default function MessagesSection({
           ? `🖼️ [Image] ${textToSend || 'Nightgram Photo'}`
           : encryptedText;
 
+        const partnerUid = currentDirectChat.participants?.find((id) => id !== currentUser.uid) ||
+          currentDirectChat.id.split('_').find((id) => id !== currentUser.uid);
+
         // Update room metadata with encrypted text for database storage
         await updateDoc(doc(db, 'chats', currentDirectChat.id), {
           lastMessage: lastMsgPreview,
           lastMessageTime: nowFormatted,
+          lastSenderId: currentUser.uid,
           updatedAt: new Date().toISOString(),
+          unreadBy: partnerUid ? arrayUnion(partnerUid) : [],
         });
-
-        // Trigger real-time partner "is typing..." feedback
-        if (activePartner) {
-          setTimeout(() => {
-            setIsPartnerTyping(true);
-            setTimeout(async () => {
-              setIsPartnerTyping(false);
-              const partnerReplies = imageToSend ? [
-                'Wow, what an awesome Nightgram photo! Loved the neon tones. ✨📸',
-                'Incredible image! Saved it to my favorites. 💖',
-                'Awesome vibe in this Nightgram photo! Fits our conversation perfectly.',
-              ] : [
-                'Definitely! Great idea. 👍✨',
-                'So cool! Let\'s keep chatting here.',
-                'Awesome! I\'ll check it out soon. 🌟',
-                'Perfect! Loved your message.',
-              ];
-              const reply = partnerReplies[Math.floor(Math.random() * partnerReplies.length)];
-              try {
-                const partnerEncrypted = await encryptMessageText(reply, currentDirectChat.id);
-                await addDoc(messagesRef, {
-                  chatId: currentDirectChat.id,
-                  senderId: activePartner.uid,
-                  senderName: activePartner.displayName || activePartner.username,
-                  senderAvatar: activePartner.avatar,
-                  text: partnerEncrypted,
-                  replyTo: {
-                    id: `msg-${Date.now()}`,
-                    senderName: currentUser.displayName || currentUser.username,
-                    text: textToSend,
-                  },
-                  createdAt: new Date().toISOString(),
-                });
-                await updateDoc(doc(db, 'chats', currentDirectChat.id), {
-                  lastMessage: partnerEncrypted,
-                  lastMessageTime: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-                  updatedAt: new Date().toISOString(),
-                });
-              } catch (err) {
-                console.error('Error generating partner reply:', err);
-              }
-            }, 2000);
-          }, 600);
-        }
       } catch (err) {
         console.error('Error sending message:', err);
       }
@@ -1466,47 +1488,17 @@ export default function MessagesSection({
 
         await addDoc(messagesRef, msgPayload);
 
+        const partnerUid = currentDirectChat.participants?.find((id) => id !== currentUser.uid) ||
+          currentDirectChat.id.split('_').find((id) => id !== currentUser.uid);
+
         // Update room summary preview
         await updateDoc(doc(db, 'chats', currentDirectChat.id), {
           lastMessage: `📷 ${cleanCaption || 'Photo'}`,
           lastMessageTime: nowFormatted,
+          lastSenderId: currentUser.uid,
           updatedAt: new Date().toISOString(),
+          unreadBy: partnerUid ? arrayUnion(partnerUid) : [],
         });
-
-        // Trigger real-time partner typing reply
-        if (activePartner) {
-          setTimeout(() => {
-            setIsPartnerTyping(true);
-            setTimeout(async () => {
-              setIsPartnerTyping(false);
-              const replies = [
-                'Wow, what a stellar shot! Loved the vibe in this photo! 📸✨',
-                'Awesome photo! Saved it to my favorites. 💖',
-                'Great snap! Looks super crisp! 🌟',
-              ];
-              const reply = replies[Math.floor(Math.random() * replies.length)];
-              try {
-                const partnerEncrypted = await encryptMessageText(reply, currentDirectChat.id);
-                await addDoc(messagesRef, {
-                  chatId: currentDirectChat.id,
-                  senderId: activePartner.uid,
-                  senderName: activePartner.displayName || activePartner.username,
-                  senderAvatar: activePartner.avatar,
-                  text: partnerEncrypted,
-                  replyTo: {
-                    id: `msg-${Date.now()}`,
-                    senderName: currentUser.displayName || currentUser.username,
-                    text: cleanCaption || '📷 Photo',
-                    imageUrl: imageUrl,
-                  },
-                  createdAt: new Date().toISOString(),
-                });
-              } catch (err) {
-                console.error('Error generating photo reply:', err);
-              }
-            }, 2000);
-          }, 600);
-        }
       } catch (err) {
         console.error('Error sending photo in direct chat:', err);
       }
@@ -1534,11 +1526,14 @@ export default function MessagesSection({
     }
   };
 
-  // Filtered direct chats by search
+  // Filtered direct chats by search and filter pills
   const filteredDirectChats = directChats.filter((chat) => {
+    const isUnread = currentUser?.uid ? Boolean(chat.unreadBy && chat.unreadBy.includes(currentUser.uid)) : false;
+    if (activeFilterPill === 'unread' && !isUnread) return false;
     const partner = getPartnerProfile(chat);
     if (!partner) return true;
     const queryStr = sidebarSearch.toLowerCase();
+    if (!queryStr) return true;
     return (
       partner.displayName.toLowerCase().includes(queryStr) ||
       partner.username.toLowerCase().includes(queryStr) ||
@@ -1981,6 +1976,7 @@ export default function MessagesSection({
                   const partner = getPartnerProfile(chat);
                   if (!partner) return null;
                   const isSelected = activeChatId === chat.id && !activeDemoChat;
+                  const isUnread = currentUser?.uid ? Boolean(chat.unreadBy && chat.unreadBy.includes(currentUser.uid)) : false;
 
                   return (
                     <button
@@ -2001,16 +1997,19 @@ export default function MessagesSection({
                             referrerPolicy="no-referrer"
                           />
                         </div>
+                        {isUnread && (
+                          <span className="absolute -top-0.5 -right-0.5 w-3 h-3 rounded-full bg-cyan-400 ring-2 ring-zinc-950 animate-pulse" />
+                        )}
                       </div>
 
                       {/* Content */}
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between">
-                          <span className="text-sm font-semibold text-zinc-100 truncate">
+                          <span className={`text-sm truncate ${isUnread ? 'font-bold text-white' : 'font-semibold text-zinc-100'}`}>
                             {partner.displayName}
                           </span>
-                          <span className="text-[10px] text-cyan-400 font-mono flex-shrink-0">
-                            {chat.lastMessageTime || '9:00 am'}
+                          <span className={`text-[10px] font-mono flex-shrink-0 ${isUnread ? 'text-cyan-400 font-bold' : 'text-zinc-500'}`}>
+                            {chat.lastMessageTime || 'Just now'}
                           </span>
                         </div>
                         <div className="flex items-center justify-between mt-0.5">
@@ -2018,12 +2017,16 @@ export default function MessagesSection({
                             {isPartnerTyping && activeChatId === chat.id ? (
                               <span className="text-cyan-400 font-medium animate-pulse">typing...</span>
                             ) : (
-                              <span className="text-zinc-400">{chat.lastMessage || 'Chat started'}</span>
+                              <span className={isUnread ? 'text-cyan-200 font-medium' : 'text-zinc-400'}>
+                                {chat.lastMessage || 'Chat started'}
+                              </span>
                             )}
                           </p>
-                          <span className="w-4 h-4 rounded-full bg-cyan-500 text-zinc-950 font-bold text-[9px] flex items-center justify-center flex-shrink-0 shadow-[0_0_8px_rgba(6,182,212,0.4)]">
-                            {(idx % 3) + 1}
-                          </span>
+                          {isUnread && (
+                            <span className="min-w-[18px] h-[18px] px-1 rounded-full bg-cyan-500 text-zinc-950 font-bold text-[10px] flex items-center justify-center flex-shrink-0 shadow-[0_0_8px_rgba(6,182,212,0.6)]">
+                              1
+                            </span>
+                          )}
                         </div>
                       </div>
                     </button>

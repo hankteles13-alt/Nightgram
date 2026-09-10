@@ -455,6 +455,36 @@ export default function App() {
     return () => unsubscribeMessages();
   }, [currentUser?.uid]);
 
+  // 5. Track unread direct chats for currentUser
+  const [unreadDirectChatsCount, setUnreadDirectChatsCount] = useState(0);
+
+  useEffect(() => {
+    if (!currentUser?.uid) {
+      setUnreadDirectChatsCount(0);
+      return;
+    }
+    try {
+      const chatsRef = collection(db, 'chats');
+      const q = query(chatsRef, where('participants', 'array-contains', currentUser.uid));
+      const unsubscribe = onSnapshot(q, (snapshot) => {
+        let count = 0;
+        snapshot.forEach((docSnap) => {
+          const data = docSnap.data();
+          if (data.unreadBy && data.unreadBy.includes(currentUser.uid)) {
+            count++;
+          }
+        });
+        setUnreadDirectChatsCount(count);
+      }, (err) => {
+        console.warn('Unread chats count snapshot warning:', err);
+      });
+
+      return () => unsubscribe();
+    } catch (e) {
+      console.warn('Error setting up unread chats counter:', e);
+    }
+  }, [currentUser?.uid]);
+
   // Synchronize notifications to localStorage
   useEffect(() => {
     localStorage.setItem('nightgram_notifications', JSON.stringify(notifications));
@@ -484,9 +514,8 @@ export default function App() {
     if (isRefreshingFeed) return;
     setIsRefreshingFeed(true);
     try {
-      // Direct re-fetch of the posts collection from Firestore ordered by creation date
-      const postsQuery = query(collection(db, 'posts'), orderBy('createdAt', 'desc'));
-      const snapshot = await getDocs(postsQuery);
+      // Direct re-fetch of the posts collection from Firestore with client-side sort
+      const snapshot = await getDocs(collection(db, 'posts'));
       const fetchedPosts: Post[] = [];
       snapshot.forEach((docSnap) => {
         const data = docSnap.data();
@@ -495,7 +524,7 @@ export default function App() {
           username: data.username || 'anonymous',
           userAvatar: data.userAvatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
           userId: data.userId || '',
-          image: data.image || '',
+          image: data.image && data.image.trim() ? data.image : 'https://images.unsplash.com/photo-1540959733332-eab4deceeaf7?w=1000',
           caption: data.caption || '',
           location: data.location || '',
           time: data.time || 'Midnight',
@@ -507,8 +536,16 @@ export default function App() {
           tags: data.tags || [],
           likedBy: data.likedBy || [],
           savedBy: data.savedBy || [],
+          createdAt: data.createdAt || '',
         });
       });
+
+      fetchedPosts.sort((a: any, b: any) => {
+        const timeA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+        const timeB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+        return timeB - timeA;
+      });
+
       setPosts(fetchedPosts);
     } catch (err) {
       console.warn('Firestore posts manual re-fetch warning:', err);
@@ -1455,14 +1492,21 @@ export default function App() {
         <button
           id="nav-messages-btn"
           onClick={() => setActiveTab('messages')}
-          className={`flex items-center space-x-1.5 sm:space-x-2 px-2.5 sm:px-3 py-2 rounded-xl transition-all cursor-pointer ${
+          className={`flex items-center space-x-1.5 sm:space-x-2 px-2.5 sm:px-3 py-2 rounded-xl transition-all cursor-pointer relative ${
             activeTab === 'messages'
               ? 'text-cyan-300 bg-cyan-950/40 border border-cyan-500/40 shadow-[0_0_12px_rgba(6,182,212,0.2)]'
               : 'text-zinc-500 hover:text-zinc-300 hover:bg-zinc-900/40'
           }`}
           title="Nightgram Chats"
         >
-          <MessageSquare className="w-5 h-5" />
+          <div className="relative">
+            <MessageSquare className="w-5 h-5" />
+            {unreadDirectChatsCount > 0 && (
+              <span className="absolute -top-2 -right-2.5 min-w-[17px] h-[17px] px-1 rounded-full bg-cyan-400 text-zinc-950 font-black text-[10px] flex items-center justify-center shadow-[0_0_10px_rgba(6,182,212,0.9)] animate-pulse">
+                {unreadDirectChatsCount > 9 ? '9+' : unreadDirectChatsCount}
+              </span>
+            )}
+          </div>
           <span className="hidden sm:inline text-xs font-bold tracking-wide font-sans">Chats</span>
         </button>
 
