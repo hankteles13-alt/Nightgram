@@ -12,6 +12,7 @@ import {
   Check,
   Music,
   Play,
+  Pause,
   Send,
   X,
   MessageSquare,
@@ -221,24 +222,33 @@ export function ReelsSection({
   const videoRefs = useRef<{ [key: number]: HTMLVideoElement | null }>({});
   const touchStartY = useRef<number>(0);
 
+  // Hold-to-pause & tap-to-pause tracking state
+  const [isHoldingPause, setIsHoldingPause] = useState(false);
+  const pointerDownTime = useRef<number>(0);
+  const pointerStartPos = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
+  const isPointerActive = useRef<boolean>(false);
+  const holdTimerRef = useRef<any>(null);
+  const hasTriggeredHold = useRef<boolean>(false);
+
   // Sync state to local storage
   useEffect(() => {
     localStorage.setItem('nightgram_shorts', JSON.stringify(shorts));
   }, [shorts]);
 
-  // Video playback management
+  // Video playback management when switching shorts (currentIndex changes)
   useEffect(() => {
     setIsVideoLoading(true);
     setShowNiyteeEndCard(false);
+    setIsPlaying(true);
+    setIsHoldingPause(false);
+
     Object.keys(videoRefs.current).forEach((key) => {
       const idx = parseInt(key, 10);
       const vid = videoRefs.current[idx];
       if (vid) {
         if (idx === currentIndex) {
           vid.currentTime = 0;
-          if (isPlaying) {
-            vid.play().catch(() => {});
-          }
+          vid.play().catch(() => {});
         } else {
           vid.pause();
         }
@@ -246,7 +256,92 @@ export function ReelsSection({
     });
     const timer = setTimeout(() => setIsVideoLoading(false), 300);
     return () => clearTimeout(timer);
-  }, [currentIndex, isPlaying]);
+  }, [currentIndex]);
+
+  // Video play/pause management (toggled or held-to-pause)
+  useEffect(() => {
+    const vid = videoRefs.current[currentIndex];
+    if (!vid) return;
+
+    if (isPlaying && !isHoldingPause) {
+      vid.play().catch(() => {});
+    } else {
+      vid.pause();
+    }
+  }, [currentIndex, isPlaying, isHoldingPause]);
+
+  // Pointer event handlers: hold down to pause as long as clicked/pressed, quick tap to toggle pause
+  const handleVideoPointerDown = (e: React.PointerEvent) => {
+    if (e.button !== 0 && e.pointerType === 'mouse') return;
+
+    const target = e.target as HTMLElement | null;
+    if (
+      target?.closest('button') ||
+      target?.closest('a') ||
+      target?.closest('input') ||
+      target?.closest('[role="button"]') ||
+      target?.closest('.prevent-video-pause')
+    ) {
+      return;
+    }
+
+    isPointerActive.current = true;
+    hasTriggeredHold.current = false;
+    pointerDownTime.current = Date.now();
+    pointerStartPos.current = { x: e.clientX, y: e.clientY };
+
+    clearTimeout(holdTimerRef.current);
+    holdTimerRef.current = setTimeout(() => {
+      if (isPointerActive.current) {
+        hasTriggeredHold.current = true;
+        setIsHoldingPause(true);
+      }
+    }, 140);
+  };
+
+  const handleVideoPointerMove = (e: React.PointerEvent) => {
+    if (!isPointerActive.current) return;
+
+    const dx = Math.abs(e.clientX - pointerStartPos.current.x);
+    const dy = Math.abs(e.clientY - pointerStartPos.current.y);
+
+    // Cancel hold-pause if swiping/dragging to prevent accidental pause during scroll
+    if (dx > 15 || dy > 15) {
+      clearTimeout(holdTimerRef.current);
+      if (hasTriggeredHold.current || isHoldingPause) {
+        setIsHoldingPause(false);
+      }
+      isPointerActive.current = false;
+      hasTriggeredHold.current = false;
+    }
+  };
+
+  const handleVideoPointerUp = (e: React.PointerEvent) => {
+    if (!isPointerActive.current) return;
+
+    clearTimeout(holdTimerRef.current);
+    const duration = Date.now() - pointerDownTime.current;
+
+    if (hasTriggeredHold.current || isHoldingPause) {
+      // Released after holding down: resume playback immediately
+      setIsHoldingPause(false);
+    } else if (duration < 140) {
+      // Quick tap / click: toggle play/pause smoothly at current frame
+      setIsPlaying((prev) => !prev);
+    }
+
+    isPointerActive.current = false;
+    hasTriggeredHold.current = false;
+  };
+
+  const handleVideoPointerCancel = () => {
+    clearTimeout(holdTimerRef.current);
+    if (hasTriggeredHold.current || isHoldingPause) {
+      setIsHoldingPause(false);
+    }
+    isPointerActive.current = false;
+    hasTriggeredHold.current = false;
+  };
 
   const handleTimeUpdate = (e: React.SyntheticEvent<HTMLVideoElement>) => {
     const vid = e.currentTarget;
@@ -520,9 +615,13 @@ export function ReelsSection({
       {/* Main Full-Screen Video Canvas */}
       {currentShort && (
         <div
-          className="relative w-full h-full flex items-center justify-center bg-black overflow-hidden"
+          className="relative w-full h-full flex items-center justify-center bg-black overflow-hidden select-none cursor-pointer"
           onDoubleClick={() => handleDoubleTap(currentShort.id)}
-          onClick={() => setIsPlaying(!isPlaying)}
+          onPointerDown={handleVideoPointerDown}
+          onPointerMove={handleVideoPointerMove}
+          onPointerUp={handleVideoPointerUp}
+          onPointerCancel={handleVideoPointerCancel}
+          onPointerLeave={handleVideoPointerCancel}
         >
           {/* HTML5 Full-Cover Video */}
           <video
@@ -546,7 +645,7 @@ export function ReelsSection({
               if (target.src !== fallbackUrl) {
                 target.src = fallbackUrl;
                 target.load();
-                if (isPlaying) {
+                if (isPlaying && !isHoldingPause) {
                   target.play().catch(() => {});
                 }
               }
@@ -696,8 +795,8 @@ export function ReelsSection({
             </div>
           )}
 
-          {/* Center Pause Indicator */}
-          {!isPlaying && !isVideoLoading && (
+          {/* Center Pause Indicator (when paused via tap/click) */}
+          {!isPlaying && !isVideoLoading && !isHoldingPause && (
             <div className="absolute inset-0 flex items-center justify-center bg-black/20 pointer-events-none z-20">
               <div className="w-20 h-20 rounded-full bg-black/50 backdrop-blur-md flex items-center justify-center text-white border border-white/20 shadow-2xl">
                 <Play className="w-10 h-10 fill-white ml-1 text-white" />
@@ -705,9 +804,29 @@ export function ReelsSection({
             </div>
           )}
 
+          {/* Hold-to-Pause Indicator Overlay (active as long as user holds click/press) */}
+          <AnimatePresence>
+            {isHoldingPause && (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.85 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.85 }}
+                transition={{ duration: 0.15 }}
+                className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none z-35 bg-black/25 backdrop-blur-[1.5px]"
+              >
+                <div className="flex items-center space-x-2.5 px-5 py-2.5 rounded-full bg-black/75 backdrop-blur-xl border border-white/25 shadow-[0_8px_32px_rgba(0,0,0,0.6)] text-white">
+                  <Pause className="w-4 h-4 fill-white text-white animate-pulse" />
+                  <span className="text-xs font-bold tracking-widest uppercase font-mono">Paused</span>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
           {/* Right Action Column matching the exact format of the uploaded TikTok screen */}
           <div
-            className="absolute right-3 sm:right-6 bottom-8 z-30 flex flex-col items-center space-y-5"
+            className={`absolute right-3 sm:right-6 bottom-8 z-30 flex flex-col items-center space-y-5 transition-opacity duration-200 ${
+              isHoldingPause ? 'opacity-15 pointer-events-none' : 'opacity-100'
+            }`}
             onClick={(e) => e.stopPropagation()}
           >
             {/* 1. Creator Avatar with Red '+' follow badge */}
@@ -840,7 +959,7 @@ export function ReelsSection({
             <div className="pt-2 flex flex-col items-center">
               <div
                 className={`w-11 h-11 rounded-full p-[3px] bg-gradient-to-tr from-[#121212] via-[#282828] to-[#121212] border border-zinc-700 shadow-2xl flex items-center justify-center ${
-                  isPlaying ? 'animate-[spin_4s_linear_infinite]' : ''
+                  isPlaying && !isHoldingPause ? 'animate-[spin_4s_linear_infinite]' : ''
                 }`}
               >
                 {/* Vinyl inner grooves */}
@@ -859,7 +978,9 @@ export function ReelsSection({
 
           {/* Bottom Left Meta: @username + Caption + ♫ Song name */}
           <div
-            className="absolute bottom-6 left-4 right-20 sm:left-6 sm:right-28 z-30 flex flex-col space-y-2 text-left"
+            className={`absolute bottom-6 left-4 right-20 sm:left-6 sm:right-28 z-30 flex flex-col space-y-2 text-left transition-opacity duration-200 ${
+              isHoldingPause ? 'opacity-15 pointer-events-none' : 'opacity-100'
+            }`}
             onClick={(e) => e.stopPropagation()}
           >
             {/* @username */}

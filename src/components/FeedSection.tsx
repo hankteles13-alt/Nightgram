@@ -520,6 +520,98 @@ export default function FeedSection({
     }
   };
 
+  // Hold-to-pause state and handlers for in-feed video posts
+  const [holdingPausePostId, setHoldingPausePostId] = useState<string | null>(null);
+  const feedPointerDownTime = useRef<number>(0);
+  const feedPointerStartPos = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
+  const feedIsPointerActive = useRef<boolean>(false);
+  const feedHoldTimerRef = useRef<any>(null);
+  const feedHasTriggeredHold = useRef<boolean>(false);
+  const feedActivePostId = useRef<string | null>(null);
+
+  const handleFeedVideoPointerDown = (e: React.PointerEvent, postId: string) => {
+    if (e.button !== 0 && e.pointerType === 'mouse') return;
+
+    const target = e.target as HTMLElement | null;
+    if (target?.closest('button') || target?.closest('a') || target?.closest('input') || target?.closest('[role="button"]')) {
+      return;
+    }
+
+    feedIsPointerActive.current = true;
+    feedHasTriggeredHold.current = false;
+    feedActivePostId.current = postId;
+    feedPointerDownTime.current = Date.now();
+    feedPointerStartPos.current = { x: e.clientX, y: e.clientY };
+
+    clearTimeout(feedHoldTimerRef.current);
+    feedHoldTimerRef.current = setTimeout(() => {
+      if (feedIsPointerActive.current && feedActivePostId.current === postId) {
+        feedHasTriggeredHold.current = true;
+        setHoldingPausePostId(postId);
+        const vid = videoRefs.current[postId];
+        if (vid) {
+          vid.pause();
+        }
+      }
+    }, 140);
+  };
+
+  const handleFeedVideoPointerMove = (e: React.PointerEvent) => {
+    if (!feedIsPointerActive.current) return;
+
+    const dx = Math.abs(e.clientX - feedPointerStartPos.current.x);
+    const dy = Math.abs(e.clientY - feedPointerStartPos.current.y);
+
+    if (dx > 15 || dy > 15) {
+      clearTimeout(feedHoldTimerRef.current);
+      if (feedHasTriggeredHold.current && feedActivePostId.current) {
+        const vid = videoRefs.current[feedActivePostId.current];
+        if (vid && playingVideos[feedActivePostId.current] !== false) {
+          vid.play().catch(() => {});
+        }
+        setHoldingPausePostId(null);
+      }
+      feedIsPointerActive.current = false;
+      feedHasTriggeredHold.current = false;
+      feedActivePostId.current = null;
+    }
+  };
+
+  const handleFeedVideoPointerUp = (e: React.PointerEvent, postId: string) => {
+    if (!feedIsPointerActive.current) return;
+
+    clearTimeout(feedHoldTimerRef.current);
+    const duration = Date.now() - feedPointerDownTime.current;
+
+    if (feedHasTriggeredHold.current) {
+      setHoldingPausePostId(null);
+      const vid = videoRefs.current[postId];
+      if (vid && playingVideos[postId] !== false) {
+        vid.play().catch(() => {});
+      }
+    } else if (duration < 140) {
+      handleTogglePlayVideo(postId);
+    }
+
+    feedIsPointerActive.current = false;
+    feedHasTriggeredHold.current = false;
+    feedActivePostId.current = null;
+  };
+
+  const handleFeedVideoPointerCancel = (postId: string) => {
+    clearTimeout(feedHoldTimerRef.current);
+    if (feedHasTriggeredHold.current) {
+      setHoldingPausePostId(null);
+      const vid = videoRefs.current[postId];
+      if (vid && playingVideos[postId] !== false) {
+        vid.play().catch(() => {});
+      }
+    }
+    feedIsPointerActive.current = false;
+    feedHasTriggeredHold.current = false;
+    feedActivePostId.current = null;
+  };
+
   // Handle Like
   const handleToggleLike = (postId: string, isFromDb?: boolean) => {
     if (isFromDb) {
@@ -924,10 +1016,20 @@ export default function FeedSection({
                 <div
                   className="relative aspect-[4/5] sm:aspect-square md:max-h-[580px] w-full bg-black overflow-hidden cursor-pointer select-none"
                   onDoubleClick={() => handleDoubleTap(post.id, post.isFromDb)}
-                  onClick={() => {
-                    if (isVideoPost) {
-                      handleTogglePlayVideo(post.id);
-                    }
+                  onPointerDown={(e) => {
+                    if (isVideoPost) handleFeedVideoPointerDown(e, post.id);
+                  }}
+                  onPointerMove={(e) => {
+                    if (isVideoPost) handleFeedVideoPointerMove(e);
+                  }}
+                  onPointerUp={(e) => {
+                    if (isVideoPost) handleFeedVideoPointerUp(e, post.id);
+                  }}
+                  onPointerCancel={() => {
+                    if (isVideoPost) handleFeedVideoPointerCancel(post.id);
+                  }}
+                  onPointerLeave={() => {
+                    if (isVideoPost) handleFeedVideoPointerCancel(post.id);
                   }}
                 >
                   {isVideoPost ? (
@@ -977,6 +1079,22 @@ export default function FeedSection({
                             ) : (
                               <Pause className="w-8 h-8 text-white fill-white" />
                             )}
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+
+                      {/* Hold-to-pause active indicator */}
+                      <AnimatePresence>
+                        {holdingPausePostId === post.id && (
+                          <motion.div
+                            initial={{ scale: 0.85, opacity: 0 }}
+                            animate={{ scale: 1, opacity: 1 }}
+                            exit={{ scale: 0.85, opacity: 0 }}
+                            transition={{ duration: 0.15 }}
+                            className="absolute inset-0 m-auto w-24 h-9 rounded-full bg-black/80 backdrop-blur-md flex items-center justify-center pointer-events-none z-25 border border-white/20 shadow-2xl gap-2 text-white"
+                          >
+                            <Pause className="w-3.5 h-3.5 fill-white text-white animate-pulse" />
+                            <span className="text-[11px] font-bold tracking-widest uppercase font-mono">Paused</span>
                           </motion.div>
                         )}
                       </AnimatePresence>
