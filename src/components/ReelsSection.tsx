@@ -60,7 +60,7 @@ export const DEFAULT_SHORTS: ShortVideo[] = [
       isFollowing: false,
       badge: '🌙 Night Owl',
     },
-    videoUrl: 'https://assets.mixkit.co/videos/preview/mixkit-rain-falling-on-the-water-of-a-lake-seen-up-18312-large.mp4',
+    videoUrl: 'https://vjs.zencdn.net/v/oceans.mp4',
     posterUrl: 'https://images.unsplash.com/photo-1514924013511-c8f4117702a3?w=800',
     caption: 'Late night rain reflections in Shibuya 🌧️ neon glow hits different at 2am',
     tags: ['rain', 'cyberpunk', 'tokyo', 'nocturnal'],
@@ -87,7 +87,7 @@ export const DEFAULT_SHORTS: ShortVideo[] = [
       isFollowing: false,
       badge: '⚡ Street Rider',
     },
-    videoUrl: 'https://assets.mixkit.co/videos/preview/mixkit-waves-in-the-water-1164-large.mp4',
+    videoUrl: 'https://test-videos.co.uk/vids/jellyfish/mp4/h264/360/Jellyfish_360_10s_1MB.mp4',
     posterUrl: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=800',
     caption: 'Midnight oceanic reflections under celestial moonlight 🌊🌃 silence of the dark waters',
     tags: ['waves', 'ocean', 'moonlight', 'midnight'],
@@ -114,7 +114,7 @@ export const DEFAULT_SHORTS: ShortVideo[] = [
       isFollowing: false,
       badge: '🏙️ Tokyo Resident',
     },
-    videoUrl: 'https://assets.mixkit.co/videos/preview/mixkit-set-of-plateaus-seen-from-the-sky-in-a-sunset-26070-large.mp4',
+    videoUrl: 'https://test-videos.co.uk/vids/sintel/mp4/h264/360/Sintel_360_10s_1MB.mp4',
     posterUrl: 'https://images.unsplash.com/photo-1540959733332-eab4deceeaf7?w=800',
     caption: 'Golden dusk transforming into neon twilight across the metropolis skyline 🌇✨',
     tags: ['twilight', 'skyline', 'neon', 'cinematic'],
@@ -141,7 +141,7 @@ export const DEFAULT_SHORTS: ShortVideo[] = [
       isFollowing: false,
       badge: '🎛️ Beatmaker',
     },
-    videoUrl: 'https://assets.mixkit.co/videos/preview/mixkit-hands-holding-a-smartphone-with-a-green-screen-42797-large.mp4',
+    videoUrl: 'https://media.w3.org/2010/05/sintel/trailer.mp4',
     posterUrl: 'https://images.unsplash.com/photo-1511512578047-dfb367046420?w=800',
     caption: 'Analog oscillators and 808 sub-bass tuned for 3am headphones sessions 🎧🎹',
     tags: ['synth', 'analog', 'beats', 'lofi'],
@@ -819,6 +819,7 @@ export function ReelsSection({
                 onClick={() => {
                   if (onOpenChatWithUser) {
                     onOpenChatWithUser({
+                      uid: (currentShort.creator as any)?.uid,
                       username: currentShort.creator.username,
                       displayName: currentShort.creator.displayName,
                       avatar: currentShort.creator.avatar,

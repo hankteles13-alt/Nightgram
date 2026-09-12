@@ -18,7 +18,9 @@ import {
   Sparkles,
   Contrast,
   Settings,
+  X,
 } from 'lucide-react';
+import { decryptMessageText, isEncryptedMessage } from './lib/e2ee';
 import { Post, Story, Message, UserProfile } from './types';
 import {
   INITIAL_POSTS,
@@ -184,7 +186,7 @@ export default function App() {
           const userDocRef = doc(db, 'users', firebaseUser.uid);
           const userDoc = await getDoc(userDocRef);
           if (userDoc.exists()) {
-            setCurrentUser(userDoc.data());
+            setCurrentUser({ uid: firebaseUser.uid, ...userDoc.data() });
           } else {
             // Create user profile document if it doesn't exist
             const defaultCommunityFollowers = [
@@ -263,7 +265,7 @@ export default function App() {
       doc(db, 'users', currentUser.uid),
       (docSnap) => {
         if (docSnap.exists()) {
-          setCurrentUser(docSnap.data());
+          setCurrentUser({ uid: docSnap.id, ...docSnap.data() });
         }
       },
       (err) => {
@@ -290,6 +292,11 @@ export default function App() {
               'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
             userId: data.userId || '',
             image: data.image && data.image.trim() ? data.image : 'https://images.unsplash.com/photo-1540959733332-eab4deceeaf7?w=1000',
+            videoUrl: data.videoUrl || '',
+            duration: data.duration || '',
+            mediaType: data.mediaType || (data.videoUrl ? 'video' : 'image'),
+            audioTrack: data.audioTrack || '',
+            images: data.images || (data.image ? [data.image] : []),
             caption: data.caption || '',
             location: data.location || '',
             time: data.time || 'Midnight',
@@ -455,8 +462,62 @@ export default function App() {
     return () => unsubscribeMessages();
   }, [currentUser?.uid]);
 
-  // 5. Track unread direct chats for currentUser
+  // 5. Track unread direct chats and real-time incoming messages for currentUser
   const [unreadDirectChatsCount, setUnreadDirectChatsCount] = useState(0);
+  const [incomingMessageAlert, setIncomingMessageAlert] = useState<{
+    chatId: string;
+    sender: { uid?: string; username: string; displayName?: string; avatar?: string };
+    text: string;
+    time: string;
+  } | null>(null);
+
+  const isInitialChatsLoad = useRef(true);
+  const lastKnownChatTimestamps = useRef<Record<string, string>>({});
+
+  const playIncomingMessageChime = () => {
+    try {
+      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+      if (!AudioCtx) return;
+      const ctx = new AudioCtx();
+      const now = ctx.currentTime;
+
+      // Bell chime note 1 (E5 - 659.25 Hz)
+      const osc1 = ctx.createOscillator();
+      const gain1 = ctx.createGain();
+      osc1.type = 'sine';
+      osc1.frequency.setValueAtTime(659.25, now);
+      gain1.gain.setValueAtTime(0, now);
+      gain1.gain.linearRampToValueAtTime(0.18, now + 0.03);
+      gain1.gain.exponentialRampToValueAtTime(0.001, now + 0.38);
+      osc1.connect(gain1);
+      gain1.connect(ctx.destination);
+      osc1.start(now);
+      osc1.stop(now + 0.4);
+
+      // Bell chime note 2 (B5 - 987.77 Hz)
+      const osc2 = ctx.createOscillator();
+      const gain2 = ctx.createGain();
+      osc2.type = 'sine';
+      osc2.frequency.setValueAtTime(987.77, now + 0.09);
+      gain2.gain.setValueAtTime(0, now + 0.09);
+      gain2.gain.linearRampToValueAtTime(0.22, now + 0.12);
+      gain2.gain.exponentialRampToValueAtTime(0.001, now + 0.6);
+      osc2.connect(gain2);
+      gain2.connect(ctx.destination);
+      osc2.start(now + 0.09);
+      osc2.stop(now + 0.65);
+    } catch {
+      // Audio autoplay policy guard
+    }
+  };
+
+  useEffect(() => {
+    if (!incomingMessageAlert) return;
+    const timer = setTimeout(() => {
+      setIncomingMessageAlert(null);
+    }, 6500);
+    return () => clearTimeout(timer);
+  }, [incomingMessageAlert]);
 
   useEffect(() => {
     if (!currentUser?.uid) {
@@ -466,18 +527,98 @@ export default function App() {
     try {
       const chatsRef = collection(db, 'chats');
       const q = query(chatsRef, where('participants', 'array-contains', currentUser.uid));
-      const unsubscribe = onSnapshot(q, (snapshot) => {
-        let count = 0;
-        snapshot.forEach((docSnap) => {
-          const data = docSnap.data();
-          if (data.unreadBy && data.unreadBy.includes(currentUser.uid)) {
-            count++;
+      const unsubscribe = onSnapshot(
+        q,
+        async (snapshot) => {
+          let unreadCount = 0;
+
+          if (isInitialChatsLoad.current) {
+            snapshot.forEach((docSnap) => {
+              const data = docSnap.data();
+              lastKnownChatTimestamps.current[docSnap.id] = data.updatedAt || '';
+              if (data.unreadBy && data.unreadBy.includes(currentUser.uid)) {
+                unreadCount++;
+              }
+            });
+            isInitialChatsLoad.current = false;
+            setUnreadDirectChatsCount(unreadCount);
+            return;
           }
-        });
-        setUnreadDirectChatsCount(count);
-      }, (err) => {
-        console.warn('Unread chats count snapshot warning:', err);
-      });
+
+          // On subsequent real-time changes
+          for (const change of snapshot.docChanges()) {
+            const data = change.doc.data();
+            const chatId = change.doc.id;
+            const isUnread = data.unreadBy && data.unreadBy.includes(currentUser.uid);
+            const isFromPartner = data.lastSenderId && data.lastSenderId !== currentUser.uid;
+            const prevTimestamp = lastKnownChatTimestamps.current[chatId];
+            const currentTimestamp = data.updatedAt || '';
+
+            if (
+              (change.type === 'added' || change.type === 'modified') &&
+              isFromPartner &&
+              isUnread &&
+              currentTimestamp !== prevTimestamp
+            ) {
+              lastKnownChatTimestamps.current[chatId] = currentTimestamp;
+
+              // Resolve sender profile
+              const partnerProfile =
+                data.participantProfiles?.[data.lastSenderId] || {
+                  uid: data.lastSenderId,
+                  username: data.lastSenderId.startsWith('user_') ? data.lastSenderId.replace('user_', '') : 'dreamer',
+                  displayName: data.lastSenderId.startsWith('user_') ? data.lastSenderId.replace('user_', '') : 'Community Dreamer',
+                  avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150',
+                };
+
+              let plainPreview = data.lastMessage || 'Sent you a message';
+              if (isEncryptedMessage(data.lastMessage)) {
+                try {
+                  plainPreview = await decryptMessageText(data.lastMessage, chatId);
+                } catch {
+                  plainPreview = '🔒 Encrypted message';
+                }
+              }
+
+              // Play soft nocturnal chime and trigger interactive banner alert
+              playIncomingMessageChime();
+              setIncomingMessageAlert({
+                chatId,
+                sender: partnerProfile,
+                text: plainPreview,
+                time: data.lastMessageTime || 'Just now',
+              });
+
+              // Add notification
+              setNotifications((prev) => [
+                {
+                  id: `notif-msg-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+                  type: 'message',
+                  user: partnerProfile,
+                  text: plainPreview,
+                  timestamp: 'Just now',
+                  unread: true,
+                  chatId,
+                },
+                ...prev,
+              ]);
+            } else {
+              lastKnownChatTimestamps.current[chatId] = currentTimestamp;
+            }
+          }
+
+          snapshot.forEach((docSnap) => {
+            const data = docSnap.data();
+            if (data.unreadBy && data.unreadBy.includes(currentUser.uid)) {
+              unreadCount++;
+            }
+          });
+          setUnreadDirectChatsCount(unreadCount);
+        },
+        (err) => {
+          console.warn('Unread chats count snapshot warning:', err);
+        }
+      );
 
       return () => unsubscribe();
     } catch (e) {
@@ -525,6 +666,11 @@ export default function App() {
           userAvatar: data.userAvatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
           userId: data.userId || '',
           image: data.image && data.image.trim() ? data.image : 'https://images.unsplash.com/photo-1540959733332-eab4deceeaf7?w=1000',
+          videoUrl: data.videoUrl || '',
+          duration: data.duration || '',
+          mediaType: data.mediaType || (data.videoUrl ? 'video' : 'image'),
+          audioTrack: data.audioTrack || '',
+          images: data.images || (data.image ? [data.image] : []),
           caption: data.caption || '',
           location: data.location || '',
           time: data.time || 'Midnight',
@@ -594,22 +740,41 @@ export default function App() {
   };
 
   const handleAddComment = async (postId: string, commentText: string) => {
-    if (!currentUser) return;
+    const safeUsername = currentUser?.username || 'danielbanks7765';
+    const safeAvatar =
+      currentUser?.avatar ||
+      'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80';
+    const newComment = {
+      id: `comment-${Date.now()}`,
+      username: safeUsername,
+      userAvatar: safeAvatar,
+      userId: currentUser?.uid || 'guest-uid',
+      text: commentText,
+      time: '1s',
+      likes: 0,
+    };
+
+    // Optimistically update posts state
+    setPosts((prev) =>
+      prev.map((p) =>
+        p.id === postId
+          ? {
+              ...p,
+              comments: [newComment, ...(p.comments || [])],
+            }
+          : p
+      )
+    );
+
     try {
-      const newComment = {
-        id: `comment-${Date.now()}`,
-        username: currentUser.username || 'dreamer',
-        userAvatar: currentUser.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150',
-        userId: currentUser.uid,
-        text: commentText,
-        time: 'Just now',
-      };
-      const postRef = doc(db, 'posts', postId);
-      await updateDoc(postRef, {
-        comments: arrayUnion(newComment),
-      });
+      if (postId && !postId.startsWith('demo-')) {
+        const postRef = doc(db, 'posts', postId);
+        await updateDoc(postRef, {
+          comments: arrayUnion(newComment),
+        });
+      }
     } catch (err) {
-      console.error('Error adding comment: ', err);
+      console.warn('Firestore add comment fallback:', err);
     }
   };
 
@@ -866,6 +1031,52 @@ export default function App() {
       };
 
       setShorts((prev) => [optimisticShort, ...prev.filter((s) => s.id !== docRef.id)]);
+
+      // Also create a playable video post in the feed
+      const newFeedPost: Post = {
+        id: `post-short-${docRef.id}`,
+        userId: currentUser?.uid,
+        username: currentUser?.username || 'dreamer',
+        userAvatar: safeAvatar,
+        image: safePoster || 'https://images.unsplash.com/photo-1514565131-fce0801e5785?w=800',
+        videoUrl: newShort.videoUrl,
+        duration: '0:30',
+        mediaType: 'video',
+        audioTrack: newShort.audioTrack ? `${newShort.audioTrack.title} • ${newShort.audioTrack.artist}` : 'Original Sound',
+        caption: newShort.caption || 'Nightgram Short 🎬',
+        location: 'Nightgram Studios',
+        time: 'Just now',
+        likes: 0,
+        comments: [],
+        isLiked: false,
+        isSaved: false,
+        mood: newShort.moodTag || 'Night Owls',
+        tags: newShort.tags || [],
+        createdAt: new Date().toISOString(),
+      };
+      setPosts((prev) => [newFeedPost, ...prev]);
+
+      try {
+        await addDoc(collection(db, 'posts'), {
+          userId: currentUser?.uid || '',
+          username: currentUser?.username || 'dreamer',
+          userAvatar: safeAvatar,
+          image: safePoster || 'https://images.unsplash.com/photo-1514565131-fce0801e5785?w=800',
+          videoUrl: newShort.videoUrl,
+          duration: '0:30',
+          mediaType: 'video',
+          audioTrack: newShort.audioTrack ? `${newShort.audioTrack.title} • ${newShort.audioTrack.artist}` : 'Original Sound',
+          caption: newShort.caption || 'Nightgram Short 🎬',
+          location: 'Nightgram Studios',
+          mood: newShort.moodTag || 'Night Owls',
+          tags: newShort.tags || [],
+          time: 'Just now',
+          likedBy: [],
+          savedBy: [],
+          comments: [],
+          createdAt: new Date().toISOString(),
+        });
+      } catch {}
     } catch (err) {
       console.warn('Firestore short saving notice (fallback local):', err);
       setShorts((prev) => [newShort, ...prev]);
@@ -1144,11 +1355,23 @@ export default function App() {
     }
   };
 
+  const handleReplyToAlert = () => {
+    if (incomingMessageAlert) {
+      handleOpenChatWithUser(incomingMessageAlert.sender);
+      setIncomingMessageAlert(null);
+    }
+  };
+
   const handleNotificationClick = (notifId: string) => {
     triggerVibration(15);
+    const targetNotif = notifications.find((n: any) => n.id === notifId);
     setNotifications((prev) =>
       prev.map((n: any) => (n.id === notifId ? { ...n, unread: false } : n))
     );
+    if (targetNotif && targetNotif.type === 'message' && targetNotif.user) {
+      handleOpenChatWithUser(targetNotif.user);
+      setShowNotifications(false);
+    }
   };
 
   const handleMarkAllNotificationsRead = () => {
@@ -1317,6 +1540,25 @@ export default function App() {
             )}
           </button>
 
+          {/* Notifications Center Bell */}
+          <button
+            id="top-header-notifications-btn"
+            onClick={() => setShowNotifications((prev) => !prev)}
+            className={`p-2 rounded-xl border transition cursor-pointer relative ${
+              showNotifications
+                ? 'border-cyan-500/60 bg-cyan-950/30 text-cyan-300 shadow-[0_0_12px_rgba(6,182,212,0.25)]'
+                : 'border-zinc-800/60 bg-[#121218]/40 text-zinc-400 hover:text-cyan-300 hover:border-cyan-500/50 hover:bg-cyan-950/20'
+            }`}
+            title="Notifications"
+          >
+            <Bell className="w-4 h-4" />
+            {unreadNotifsCount > 0 && (
+              <span className="absolute -top-1 -right-1 min-w-[16px] h-[16px] px-1 rounded-full bg-cyan-400 text-zinc-950 font-black text-[9px] flex items-center justify-center shadow-[0_0_8px_rgba(6,182,212,0.8)]">
+                {unreadNotifsCount > 9 ? '9+' : unreadNotifsCount}
+              </span>
+            )}
+          </button>
+
           {/* App Settings Button in Header */}
           <button
             id="top-header-settings-btn"
@@ -1329,6 +1571,190 @@ export default function App() {
         </div>
       </header>
       )}
+
+      {/* Real-time Incoming Message Toast Banner */}
+      <AnimatePresence>
+        {incomingMessageAlert && (
+          <motion.div
+            initial={{ y: -80, opacity: 0, scale: 0.95 }}
+            animate={{ y: 0, opacity: 1, scale: 1 }}
+            exit={{ y: -80, opacity: 0, scale: 0.95 }}
+            transition={{ type: 'spring', damping: 25, stiffness: 350 }}
+            className="fixed top-3 inset-x-3 sm:inset-x-auto sm:right-6 sm:max-w-md w-auto z-[80] bg-[#0c0c16]/95 backdrop-blur-xl border border-cyan-500/60 rounded-2xl p-3 sm:p-3.5 shadow-[0_12px_36px_rgba(6,182,212,0.35)] flex items-center space-x-3"
+            id="incoming-message-toast"
+          >
+            <div
+              className="relative flex-shrink-0 cursor-pointer"
+              onClick={handleReplyToAlert}
+            >
+              <img
+                src={incomingMessageAlert.sender.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150'}
+                alt={incomingMessageAlert.sender.displayName || 'Sender'}
+                className="w-10 h-10 rounded-full object-cover border border-cyan-400 shadow-[0_0_10px_rgba(6,182,212,0.5)]"
+                referrerPolicy="no-referrer"
+              />
+              <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-cyan-400 rounded-full ring-2 ring-black animate-pulse" />
+            </div>
+
+            <div
+              className="min-w-0 flex-1 cursor-pointer"
+              onClick={handleReplyToAlert}
+            >
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-white truncate">
+                  {incomingMessageAlert.sender.displayName || incomingMessageAlert.sender.username}
+                </span>
+                <span className="text-[10px] text-zinc-400 font-mono flex-shrink-0 ml-2">
+                  {incomingMessageAlert.time}
+                </span>
+              </div>
+              <p className="text-xs text-zinc-300 truncate mt-0.5 font-sans">
+                {incomingMessageAlert.text}
+              </p>
+            </div>
+
+            <div className="flex items-center space-x-1.5 flex-shrink-0">
+              <button
+                type="button"
+                onClick={handleReplyToAlert}
+                className="px-3 py-1.5 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-zinc-950 font-bold text-xs rounded-xl shadow-[0_0_12px_rgba(6,182,212,0.4)] active:scale-95 transition cursor-pointer"
+              >
+                Reply
+              </button>
+              <button
+                type="button"
+                onClick={() => setIncomingMessageAlert(null)}
+                className="p-1.5 text-zinc-400 hover:text-white rounded-lg transition cursor-pointer"
+                title="Dismiss"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Notifications Dropdown Modal */}
+      <AnimatePresence>
+        {showNotifications && (
+          <div className="fixed inset-0 z-[75] flex items-start justify-end p-4 sm:p-6 pointer-events-none">
+            <div
+              className="fixed inset-0 bg-black/40 backdrop-blur-sm pointer-events-auto"
+              onClick={() => setShowNotifications(false)}
+            />
+            <motion.div
+              initial={{ opacity: 0, y: -20, scale: 0.95 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: -20, scale: 0.95 }}
+              className="relative w-full max-w-sm mt-12 sm:mt-14 bg-[#0f0f18] border border-zinc-800/90 rounded-2xl shadow-2xl overflow-hidden pointer-events-auto flex flex-col max-h-[80vh]"
+              id="notifications-flyout"
+            >
+              {/* Header */}
+              <div className="p-4 border-b border-zinc-800/80 flex items-center justify-between">
+                <div className="flex items-center space-x-2">
+                  <Bell className="w-4 h-4 text-cyan-400" />
+                  <h3 className="text-sm font-bold text-white">Notifications</h3>
+                  {unreadNotifsCount > 0 && (
+                    <span className="text-[10px] font-mono font-bold bg-cyan-950 text-cyan-300 border border-cyan-800/50 px-2 py-0.5 rounded-full">
+                      {unreadNotifsCount} new
+                    </span>
+                  )}
+                </div>
+                <div className="flex items-center space-x-1">
+                  {unreadNotifsCount > 0 && (
+                    <button
+                      onClick={handleMarkAllNotificationsRead}
+                      className="text-[11px] text-cyan-400 hover:text-cyan-300 font-semibold px-2 py-1 rounded transition cursor-pointer"
+                    >
+                      Mark all read
+                    </button>
+                  )}
+                  <button
+                    onClick={() => setShowNotifications(false)}
+                    className="p-1 text-zinc-400 hover:text-white rounded-lg transition cursor-pointer"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+
+              {/* Filter Tabs */}
+              <div className="flex border-b border-zinc-800/80 px-4 pt-2 space-x-4 text-xs font-semibold">
+                {(['all', 'unread', 'mentions'] as const).map((tab) => (
+                  <button
+                    key={tab}
+                    onClick={() => setNotifFilterTab(tab)}
+                    className={`pb-2 capitalize cursor-pointer transition border-b-2 ${
+                      notifFilterTab === tab
+                        ? 'border-cyan-400 text-cyan-400'
+                        : 'border-transparent text-zinc-400 hover:text-zinc-200'
+                    }`}
+                  >
+                    {tab}
+                  </button>
+                ))}
+              </div>
+
+              {/* Notifications List */}
+              <div className="flex-1 overflow-y-auto divide-y divide-zinc-900 p-2 space-y-1">
+                {filteredNotifications.length === 0 ? (
+                  <div className="text-center py-8 text-zinc-500 text-xs">
+                    No notifications in this tab
+                  </div>
+                ) : (
+                  filteredNotifications.map((n: any) => (
+                    <div
+                      key={n.id}
+                      onClick={() => handleNotificationClick(n.id)}
+                      className={`p-3 rounded-xl transition cursor-pointer flex items-center space-x-3 ${
+                        n.unread ? 'bg-cyan-950/20 hover:bg-cyan-950/30' : 'hover:bg-zinc-900/50'
+                      }`}
+                    >
+                      <img
+                        src={n.user?.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150'}
+                        alt={n.user?.displayName || n.user?.username || 'User'}
+                        className="w-9 h-9 rounded-full object-cover border border-zinc-700 flex-shrink-0"
+                        referrerPolicy="no-referrer"
+                      />
+                      <div className="min-w-0 flex-1 text-xs">
+                        <p className="text-zinc-200 leading-snug">
+                          <span className="font-bold text-white">
+                            {n.user?.displayName || n.user?.username || 'Someone'}
+                          </span>{' '}
+                          {n.type === 'message' ? (
+                            <span className="text-cyan-300">sent you a message</span>
+                          ) : (
+                            n.action || 'interacted with your content'
+                          )}
+                        </p>
+                        {n.text && (
+                          <p className="text-zinc-400 text-[11px] truncate mt-0.5">
+                            "{n.text}"
+                          </p>
+                        )}
+                        <span className="text-[10px] text-zinc-500 mt-1 block font-mono">
+                          {n.timestamp || 'Just now'}
+                        </span>
+                      </div>
+                      {n.type === 'message' && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleNotificationClick(n.id);
+                          }}
+                          className="px-2.5 py-1 text-[11px] font-bold bg-cyan-950 text-cyan-300 border border-cyan-800/60 rounded-lg hover:bg-cyan-900 transition flex-shrink-0"
+                        >
+                          Reply
+                        </button>
+                      )}
+                    </div>
+                  ))
+                )}
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
       {/* Main Full-Screen Body Area */}
       <main
@@ -1363,6 +1789,7 @@ export default function App() {
                   {/* Video format feed list */}
                   <FeedSection
                     posts={posts}
+                    shorts={shorts}
                     currentUser={currentUser}
                     onLike={handleLikePost}
                     onSave={handleSavePost}

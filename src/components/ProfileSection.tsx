@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Post, UserProfile } from '../types';
 import AnimatedLikeButton from './AnimatedLikeButton';
+import AnimatedCommentButton from './AnimatedCommentButton';
 import {
   Edit2,
   Grid,
@@ -787,10 +788,12 @@ export default function ProfileSection({
                     onLike={onLike}
                     size="sm"
                   />
-                  <div className="flex items-center space-x-1 text-cyan-400 font-semibold">
-                    <MessageCircle className="w-4 h-4" />
-                    <span>{selectedPost.comments?.length || 0} Thoughts</span>
-                  </div>
+                  <AnimatedCommentButton
+                    postId={selectedPost.id}
+                    commentsCount={selectedPost.comments?.length || 0}
+                    onClick={() => {}}
+                    size="sm"
+                  />
                 </div>
               </div>
             </motion.div>

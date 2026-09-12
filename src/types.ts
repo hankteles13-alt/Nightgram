@@ -13,6 +13,11 @@ export interface Post {
   userAvatar: string;
   userId?: string;
   image: string;
+  videoUrl?: string;
+  duration?: string;
+  mediaType?: 'image' | 'video';
+  audioTrack?: string;
+  images?: string[];
   caption: string;
   location: string;
   time: string;
@@ -25,6 +30,8 @@ export interface Post {
   likedBy?: string[];
   savedBy?: string[];
   createdAt?: string;
+  repostsCount?: number;
+  sharesCount?: number;
 }
 
 export interface Story {
