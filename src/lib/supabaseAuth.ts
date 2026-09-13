@@ -46,6 +46,14 @@ export function normalizeUser(user: any): AppUser | null {
   };
 }
 
+const restoreVerifiedSessionMarker = (user: AppUser | null) => {
+  if (!user?.uid || typeof window === 'undefined') return;
+  const key = `nightgram_2fa_${user.uid}`;
+  if (localStorage.getItem(key) === 'true') {
+    sessionStorage.setItem(key, 'true');
+  }
+};
+
 export const onAuthStateChanged = (
   _auth: any,
   callback: (user: AppUser | null) => void
@@ -53,13 +61,21 @@ export const onAuthStateChanged = (
   let active = true;
 
   supabase.auth.getSession().then(({ data }) => {
-    if (active) callback(normalizeUser(data.session?.user));
+    if (active) {
+      const user = normalizeUser(data.session?.user);
+      restoreVerifiedSessionMarker(user);
+      callback(user);
+    }
   }).catch(() => {
     if (active) callback(null);
   });
 
   const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
-    if (active) callback(normalizeUser(session?.user));
+    if (active) {
+      const user = normalizeUser(session?.user);
+      restoreVerifiedSessionMarker(user);
+      callback(user);
+    }
   });
 
   return () => {
@@ -70,6 +86,14 @@ export const onAuthStateChanged = (
 
 export const signOut = async (_auth?: any) => {
   const { error } = await supabase.auth.signOut();
+  if (typeof window !== 'undefined') {
+    Object.keys(localStorage).forEach((key) => {
+      if (key.startsWith('nightgram_2fa_')) localStorage.removeItem(key);
+    });
+    Object.keys(sessionStorage).forEach((key) => {
+      if (key.startsWith('nightgram_2fa_')) sessionStorage.removeItem(key);
+    });
+  }
   if (error) throw error;
 };
 
