@@ -76,22 +76,25 @@ export const signInWithEmailAndPassword = async (_auth: any, email: string, pass
   return { user: normalizeUser(data.user)! };
 };
 
+const normalizePhone = (phone: string) => phone.trim().replace(/[\s()-]/g, '');
+
 export const sendPhoneOtp = async (phone: string) => {
-  const cleanPhone = phone.trim();
+  const cleanPhone = normalizePhone(phone);
   if (!/^\+[1-9]\d{7,14}$/.test(cleanPhone)) throw new Error('Enter the mobile number in international format, for example +2567XXXXXXXX.');
   const { error } = await supabase.auth.signInWithOtp({ phone: cleanPhone, options: { shouldCreateUser: true } });
   if (error) throw error;
 };
 
 export const verifyPhoneOtp = async (phone: string, token: string): Promise<{ user: AppUser }> => {
-  const { data, error } = await supabase.auth.verifyOtp({ phone: phone.trim(), token: token.trim(), type: 'sms' });
+  const cleanPhone = normalizePhone(phone);
+  const { data, error } = await supabase.auth.verifyOtp({ phone: cleanPhone, token: token.trim(), type: 'sms' });
   if (error) throw error;
   if (!data.user) throw new Error('Phone verification succeeded but no account was returned.');
   return { user: normalizeUser(data.user)! };
 };
 
 export const updatePhoneNumber = async (phone: string) => {
-  const cleanPhone = phone.trim();
+  const cleanPhone = normalizePhone(phone);
   if (!/^\+[1-9]\d{7,14}$/.test(cleanPhone)) throw new Error('Enter the mobile number in international format.');
   const { data, error } = await supabase.auth.updateUser({ phone: cleanPhone });
   if (error) throw error;
