@@ -40,6 +40,7 @@ import CreatorChoiceSheet from './components/CreatorChoiceSheet';
 import NightgramChatExperience from './components/NightgramChatExperience';
 import ProfileSection from './components/ProfileSection';
 import LifeChaptersSection from './components/LifeChaptersSection';
+import MemoryAfterMidnight from './components/MemoryAfterMidnight';
 import NightgramMomentsSection from './components/NightgramMomentsSection';
 import { ReelsSection, ShortVideo, DEFAULT_SHORTS } from './components/ReelsSection';
 import WelcomeCoverScreen from './components/WelcomeCoverScreen';
@@ -1843,7 +1844,10 @@ export default function App() {
 
               {activeTab === 'memories' && (
                 <div className="w-full h-full flex-1 overflow-y-auto" id="memories-tab-pane">
-                  <LifeChaptersSection currentUser={currentUser} />
+                  <MemoryAfterMidnight currentUser={currentUser} />
+                  <div className="border-t border-zinc-900/80 pt-2">
+                    <LifeChaptersSection currentUser={currentUser} />
+                  </div>
                 </div>
               )}
 
