@@ -11,7 +11,6 @@ import {
   Pause,
   Home,
   Search,
-  Film,
   Heart,
   CheckCircle,
   Clock,
@@ -32,7 +31,7 @@ import {
   NOTIFICATIONS,
 } from './data';
 import StoriesSection from './components/StoriesSection';
-import FeedSection from './components/FeedSection';
+import InstagramFeedSection from './components/InstagramFeedSection';
 import CreatePostModal from './components/CreatePostModal';
 import CreateStoryModal from './components/CreateStoryModal';
 import CreateShortModal from './components/CreateShortModal';
@@ -1792,19 +1791,13 @@ export default function App() {
                   />
 
                   {/* Video format feed list */}
-                  <FeedSection
+                  <InstagramFeedSection
                     posts={posts}
-                    shorts={shorts}
                     currentUser={currentUser}
                     onLike={handleLikePost}
                     onSave={handleSavePost}
                     onAddComment={handleAddComment}
-                    selectedMood={selectedMood}
-                    setSelectedMood={setSelectedMood}
-                    onOpenChatWithUser={handleOpenChatWithUser}
                     onOpenUserProfile={(user) => setViewingUserProfile(user)}
-                    onRefreshFeed={handleRefreshFeed}
-                    isRefreshing={isRefreshingFeed}
                   />
                 </PullToRefresh>
               )}
@@ -1904,23 +1897,7 @@ export default function App() {
           <Home className="w-5 h-5" />
           <span className="hidden sm:inline text-xs font-bold tracking-wide font-sans">Feed</span>
         </button>
-
-        {/* Short Videos Tab */}
-        <button
-          id="nav-shorts-btn"
-          onClick={() => setActiveTab('shorts')}
-          className={`flex items-center space-x-1.5 sm:space-x-2 px-2.5 sm:px-3 py-2 rounded-xl transition-all cursor-pointer ${
-            activeTab === 'shorts'
-              ? 'text-cyan-300 bg-cyan-950/40 border border-cyan-500/40 shadow-[0_0_12px_rgba(6,182,212,0.2)]'
-              : 'text-zinc-500 hover:text-zinc-300 hover:bg-zinc-900/40'
-          }`}
-          title="Short Videos"
-        >
-          <Film className="w-5 h-5" />
-          <span className="hidden sm:inline text-xs font-bold tracking-wide font-sans">Shorts</span>
-        </button>
-
-        <button
+<button
           id="nav-memories-btn"
           onClick={() => setActiveTab('memories')}
           className={`flex items-center space-x-1.5 sm:space-x-2 px-2.5 sm:px-3 py-2 rounded-xl transition-all cursor-pointer ${
