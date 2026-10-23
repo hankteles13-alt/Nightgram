@@ -222,7 +222,28 @@ export const updateDoc = async (ref: Ref, value: Record<string, any>) => {
     if (value.lastMessageTime !== undefined) patch.last_message_time = value.lastMessageTime;
     if (value.lastSenderId !== undefined) patch.last_sender_id = value.lastSenderId;
     if (value.updatedAt !== undefined) patch.updated_at = value.updatedAt;
-    if (value.unreadBy !== undefined) patch.unread_by = value.unreadBy;
+    if (value.unreadBy !== undefined) {
+      const operation = value.unreadBy;
+      if (operation && typeof operation === 'object' && operation.__arrayOp) {
+        const { data: current, error: readError } = await supabase
+          .from('conversations').select('unread_by').eq('id', conversationId).maybeSingle();
+        if (readError) throw readError;
+        const unread = Array.isArray(current?.unread_by) ? [...current.unread_by] : [];
+        if (operation.__arrayOp === 'union') {
+          for (const item of operation.values || []) {
+            if (item != null && !unread.includes(item)) unread.push(item);
+          }
+        } else if (operation.__arrayOp === 'remove') {
+          for (const item of operation.values || []) {
+            const index = unread.indexOf(item);
+            if (index >= 0) unread.splice(index, 1);
+          }
+        }
+        patch.unread_by = unread;
+      } else {
+        patch.unread_by = value.unreadBy;
+      }
+    }
     if (Object.keys(patch).length) {
       const { error } = await supabase.from('conversations').update(patch).eq('id', conversationId);
       if (error) throw error;
