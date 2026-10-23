@@ -37,7 +37,7 @@ import CreatePostModal from './components/CreatePostModal';
 import CreateStoryModal from './components/CreateStoryModal';
 import CreateShortModal from './components/CreateShortModal';
 import CreatorChoiceSheet from './components/CreatorChoiceSheet';
-import MessagesSection from './components/MessagesSection';
+import NightgramChatExperience from './components/NightgramChatExperience';
 import ProfileSection from './components/ProfileSection';
 import LifeChaptersSection from './components/LifeChaptersSection';
 import NightgramMomentsSection from './components/NightgramMomentsSection';
@@ -1825,7 +1825,7 @@ export default function App() {
 
               {activeTab === 'messages' && (
                 <div className="w-full h-full flex-1 flex flex-col min-h-0 overflow-hidden" id="messages-tab-pane">
-                  <MessagesSection
+                  <NightgramChatExperience
                     currentUser={currentUser}
                     targetChatUser={targetChatUser}
                     onClearTargetChatUser={() => setTargetChatUser(null)}
