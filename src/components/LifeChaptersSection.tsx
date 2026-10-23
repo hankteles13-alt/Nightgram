@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import {
-  BookOpen, Plus, LockKeyhole, Globe2, Trash2, X, Sparkles, Clock3,
-  LoaderCircle, ImagePlus, Video, UploadCloud, PlayCircle
+  BookOpen, Plus, LockKeyhole, Globe2, Trash2, X, Sparkles, Clock3, History,
+  LoaderCircle, ImagePlus, Video, UploadCloud, PlayCircle, CalendarDays
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 
@@ -23,6 +23,7 @@ type ChapterMemory = {
   storage_path: string;
   media_type: 'image' | 'video';
   caption: string;
+  memory_date: string;
   created_at: string;
   signedUrl?: string;
 };
@@ -30,6 +31,7 @@ type ChapterMemory = {
 type Props = { currentUser: { uid?: string; id?: string; username?: string; displayName?: string } | null };
 
 const MEDIA_BUCKET = 'life-chapter-media';
+const localToday = () => { const date = new Date(); return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`; };
 const MAX_FILE_SIZE = 50 * 1024 * 1024;
 const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'video/mp4', 'video/webm', 'video/quicktime'];
 
@@ -44,6 +46,7 @@ export default function LifeChaptersSection({ currentUser }: Props) {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [visibility, setVisibility] = useState<'private' | 'public'>('private');
+  const [memoryDate, setMemoryDate] = useState(localToday);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
 
@@ -145,6 +148,7 @@ export default function LifeChaptersSection({ currentUser }: Props) {
       storage_path: storagePath,
       media_type: mediaType,
       caption: '',
+      memory_date: memoryDate,
     });
     if (rowError) {
       await supabase.storage.from(MEDIA_BUCKET).remove([storagePath]);
@@ -153,7 +157,7 @@ export default function LifeChaptersSection({ currentUser }: Props) {
       return;
     }
     setUploadingChapterId('');
-    setNotice(mediaType === 'video' ? 'Video memory added.' : 'Photo memory added.');
+    setNotice(`${mediaType === 'video' ? 'Video' : 'Photo'} memory added to ${chapter.title} for ${new Date(`${memoryDate}T12:00:00`).toLocaleDateString()}.`);
     await loadChapters();
   };
 
@@ -286,6 +290,9 @@ export default function LifeChaptersSection({ currentUser }: Props) {
 
                   {ownChapter && (
                     <div className="mt-4">
+
+                      <label className="mb-2 block text-[10px] font-semibold uppercase tracking-wider text-zinc-500" htmlFor={`memory-date-${chapter.id}`}>Memory date</label>
+                      <input id={`memory-date-${chapter.id}`} type="date" value={memoryDate} max={localToday()} onChange={(event) => setMemoryDate(event.target.value || localToday())} className="mb-3 w-full rounded-lg border border-zinc-800 bg-black/40 px-3 py-2 text-xs text-zinc-200 outline-none focus:border-cyan-400" />
                       <label className={`flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl border border-dashed border-cyan-500/40 bg-cyan-400/[0.04] px-3 py-3 text-xs font-semibold text-cyan-200 transition hover:bg-cyan-400/10 ${uploadingChapterId === chapter.id ? 'pointer-events-none opacity-60' : ''}`}>
                         {uploadingChapterId === chapter.id ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <UploadCloud className="h-4 w-4" />}
                         {uploadingChapterId === chapter.id ? 'Uploading…' : 'Add photo or video'}
@@ -309,6 +316,47 @@ export default function LifeChaptersSection({ currentUser }: Props) {
           })}
         </div>
       )}
+
+      {!loading && memories.length > 0 && (
+        <section className="mt-10">
+          <div className="mb-5 flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-violet-400/20 bg-violet-400/10"><History className="h-5 w-5 text-violet-300" /></div>
+            <div>
+              <h3 className="text-xl font-black text-white">Your Life Timeline</h3>
+              <p className="text-xs text-zinc-500">Your photos and videos, arranged by the date you choose.</p>
+            </div>
+          </div>
+          <div className="relative space-y-4 before:absolute before:bottom-4 before:left-[15px] before:top-4 before:w-px before:bg-gradient-to-b before:from-cyan-400/60 before:to-violet-500/10">
+            {[...memories].sort((a, b) => (b.memory_date || b.created_at.slice(0, 10)).localeCompare(a.memory_date || a.created_at.slice(0, 10))).map((memory) => {
+              const chapter = chapters.find((item) => item.id === memory.chapter_id);
+              if (!chapter) return null;
+              return (
+                <article key={memory.id} className="relative pl-10">
+                  <span className="absolute left-[9px] top-5 h-3.5 w-3.5 rounded-full border-2 border-cyan-300 bg-[#10101b] shadow-[0_0_12px_rgba(34,211,238,0.35)]" />
+                  <div className="flex flex-col gap-3 rounded-2xl border border-zinc-800 bg-[#0c0c13] p-4 sm:flex-row sm:items-center">
+                    <div className="h-24 w-full shrink-0 overflow-hidden rounded-xl bg-black/40 sm:w-32">
+                      {memory.signedUrl && (memory.media_type === 'video' ? (
+                        <video src={memory.signedUrl} controls preload="metadata" className="h-full max-h-32 w-full object-cover" aria-label="Timeline video memory" />
+                      ) : (
+                        <a href={memory.signedUrl} target="_blank" rel="noreferrer" aria-label="Open timeline photo">
+                          <img src={memory.signedUrl} alt="Timeline memory" loading="lazy" className="h-24 w-full object-cover" />
+                        </a>
+                      ))}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="inline-flex items-center gap-1.5 text-xs font-semibold text-cyan-300"><CalendarDays className="h-3.5 w-3.5" />{new Date(`${memory.memory_date || memory.created_at.slice(0, 10)}T12:00:00`).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' })}</p>
+                      <h4 className="mt-1 break-words font-bold text-white">{chapter.title}</h4>
+                      <p className="mt-1 text-xs text-zinc-500">{memory.media_type === 'video' ? 'Video memory' : 'Photo memory'} · Added {new Date(memory.created_at).toLocaleDateString()}</p>
+                    </div>
+                    {memory.user_id === userId && <button onClick={() => void deleteMemory(memory)} className="inline-flex shrink-0 items-center justify-center gap-2 rounded-lg border border-zinc-700 px-3 py-2 text-xs text-zinc-300 transition hover:border-rose-500/40 hover:text-rose-300"><Trash2 className="h-3.5 w-3.5" /> Delete</button>}
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+        </section>
+      )}
+
       <p className="mt-8 text-center text-[11px] leading-5 text-zinc-600">Your memories belong to you. Private chapter media is stored in a private bucket and requires authorization to view.</p>
     </div>
   );
