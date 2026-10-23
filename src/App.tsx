@@ -19,6 +19,7 @@ import {
   Contrast,
   Settings,
   X,
+  BookOpen,
 } from 'lucide-react';
 import { decryptMessageText, isEncryptedMessage } from './lib/e2ee';
 import { Post, Story, Message, UserProfile } from './types';
@@ -37,6 +38,7 @@ import CreateShortModal from './components/CreateShortModal';
 import CreatorChoiceSheet from './components/CreatorChoiceSheet';
 import MessagesSection from './components/MessagesSection';
 import ProfileSection from './components/ProfileSection';
+import LifeChaptersSection from './components/LifeChaptersSection';
 import { ReelsSection, ShortVideo, DEFAULT_SHORTS } from './components/ReelsSection';
 import WelcomeCoverScreen from './components/WelcomeCoverScreen';
 import AuthScreen from './components/AuthScreen';
@@ -92,7 +94,7 @@ export default function App() {
     localStorage.setItem('nightgram_theme', nextTheme ? 'true_black' : 'deep_charcoal');
   };
 
-  const [activeTab, setActiveTab] = useState<'feed' | 'shorts' | 'messages' | 'profile'>('feed');
+  const [activeTab, setActiveTab] = useState<'feed' | 'shorts' | 'messages' | 'profile' | 'memories'>('feed');
   const [hasAcceptedTerms, setHasAcceptedTerms] = useState<boolean>(() => {
     return localStorage.getItem('niytee_agreed_terms') === 'true';
   });
@@ -1837,6 +1839,12 @@ export default function App() {
                 </div>
               )}
 
+              {activeTab === 'memories' && (
+                <div className="w-full h-full flex-1 overflow-y-auto" id="memories-tab-pane">
+                  <LifeChaptersSection currentUser={currentUser} />
+                </div>
+              )}
+
               {activeTab === 'profile' && (
                 <div className="w-full h-full max-w-5xl mx-auto px-3 sm:px-6 lg:px-8 py-5 flex-1 overflow-y-auto" id="profile-tab-pane">
                   <ProfileSection
@@ -1898,6 +1906,20 @@ export default function App() {
         >
           <Film className="w-5 h-5" />
           <span className="hidden sm:inline text-xs font-bold tracking-wide font-sans">Shorts</span>
+        </button>
+
+        <button
+          id="nav-memories-btn"
+          onClick={() => setActiveTab('memories')}
+          className={`flex items-center space-x-1.5 sm:space-x-2 px-2.5 sm:px-3 py-2 rounded-xl transition-all cursor-pointer ${
+            activeTab === 'memories'
+              ? 'text-cyan-300 bg-cyan-950/40 border border-cyan-500/40 shadow-[0_0_12px_rgba(6,182,212,0.2)]'
+              : 'text-zinc-500 hover:text-zinc-300 hover:bg-zinc-900/40'
+          }`}
+          title="Life Chapters and Memories"
+        >
+          <BookOpen className="w-5 h-5" />
+          <span className="hidden sm:inline text-xs font-bold tracking-wide font-sans">Memories</span>
         </button>
 
         {/* Floating gradient '+' creator button */}
