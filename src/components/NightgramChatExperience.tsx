@@ -118,7 +118,7 @@ export default function NightgramChatExperience({
         } as ChatMessage;
       }));
       setChatMessages(items);
-      updateDoc(doc(db, 'chats', activeId), { unreadBy: arrayRemove(currentUser.uid) }).catch(() => {});
+      db.rpc('mark_conversation_read', { target_conversation_id: activeId }).catch(() => {});
     }, err => { console.error('Chat messages error:', err); setError('Messages could not be loaded. Please try again.'); });
   }, [activeId, currentUser?.uid]);
 
@@ -262,7 +262,7 @@ export default function NightgramChatExperience({
         const other = activeRoom?.participants?.find(id => id !== currentUser.uid);
         await updateDoc(doc(db, 'chats', activeId), {
           lastMessage: preview, lastMessageTime: 'Just now', lastSenderId: currentUser.uid,
-          updatedAt: new Date().toISOString(), unreadBy: other ? arrayUnion(other) : []
+          updatedAt: new Date().toISOString(), lastMessageReadBy: [], unreadBy: other ? arrayUnion(other) : []
         });
       }
     } catch (e) { console.error('Send message failed:', e); setError('Message was not sent. Please try again.'); setText(body); setAttachPreview(image); setAiTyping(false); }
@@ -305,10 +305,10 @@ export default function NightgramChatExperience({
         <div className="px-5 pb-2 flex items-center justify-between"><span className="text-[11px] uppercase tracking-[0.18em] text-zinc-500 font-bold">Recent conversations</span><span className="text-[11px] text-zinc-600">{visibleRooms.length}</span></div>
         <div className="flex-1 overflow-y-auto px-2 pb-4">
           {visibleRooms.length === 0 ? <div className="mx-3 mt-6 rounded-2xl border border-dashed border-white/10 p-6 text-center"><MessageCircle className="mx-auto text-zinc-600" size={24}/><p className="text-sm text-zinc-400 mt-3">No conversations yet</p><p className="text-xs text-zinc-600 mt-1">Start a chat and your conversations will appear here.</p><button onClick={openNewChat} className="mt-4 rounded-xl bg-white/10 px-4 py-2 text-xs font-semibold hover:bg-white/15">Find people</button></div> : visibleRooms.map(room => {
-            const p: any = partnerFor(room); const unread = Boolean(room.unreadBy?.includes(currentUser?.uid || ''));
-            return <button key={room.id} onClick={() => { setActiveId(room.id); setMobileChatOpen(true); setError(''); updateDoc(doc(db, 'chats', room.id), { unreadBy: arrayRemove(currentUser?.uid) }).catch(() => {}); }} className={`w-full flex items-center gap-3 rounded-2xl p-3 text-left transition mb-1 ${activeId === room.id ? 'bg-cyan-300/[0.09] border border-cyan-200/15' : 'border border-transparent hover:bg-white/[0.035]'}`}>
+            const p: any = partnerFor(room); const unread = Boolean(room.unreadBy?.includes(currentUser?.uid || '')); const seen = Boolean((room as any).lastMessageReadBy?.includes(p.uid));
+            return <button key={room.id} onClick={() => { setActiveId(room.id); setMobileChatOpen(true); setError(''); db.rpc('mark_conversation_read', { target_conversation_id: room.id }).catch(() => {}); }} className={`w-full flex items-center gap-3 rounded-2xl p-3 text-left transition mb-1 ${activeId === room.id ? 'bg-cyan-300/[0.09] border border-cyan-200/15' : 'border border-transparent hover:bg-white/[0.035]'}`}>
               <div className="relative flex-shrink-0"><img src={p.avatar || FALLBACK_AVATAR} alt="" className="w-12 h-12 rounded-2xl object-cover bg-zinc-800"/><span className="absolute -bottom-1 -right-1 w-3 h-3 rounded-full bg-emerald-400 border-2 border-[#0b0d16]"/></div>
-              <div className="min-w-0 flex-1"><div className="flex items-center justify-between gap-2"><span className="font-semibold text-sm truncate">{p.displayName || p.username}</span><span className={`text-[10px] flex-shrink-0 ${unread ? 'text-cyan-200' : 'text-zinc-600'}`}>{timeLabel(room.updatedAt)}</span></div><div className="flex items-center gap-1 mt-1 min-w-0"><p className={`text-xs truncate flex-1 ${unread ? 'text-cyan-200 font-medium' : 'text-zinc-500'}`}>{room.lastSenderId === currentUser?.uid ? 'You: ' : ''}{room.lastMessage || 'Say hello 👋'}</p>{room.lastSenderId === currentUser?.uid && <CheckCheck size={13} className={`flex-shrink-0 ${unread ? 'text-zinc-500' : 'text-cyan-300'}`} aria-label={unread ? 'Sent' : 'Delivered'} />}</div></div>
+              <div className="min-w-0 flex-1"><div className="flex items-center justify-between gap-2"><span className="font-semibold text-sm truncate">{p.displayName || p.username}</span><span className={`text-[10px] flex-shrink-0 ${unread ? 'text-cyan-200' : 'text-zinc-600'}`}>{timeLabel(room.updatedAt)}</span></div><div className="flex items-center gap-1 mt-1 min-w-0"><p className={`text-xs truncate flex-1 ${unread ? 'text-cyan-200 font-medium' : 'text-zinc-500'}`}>{room.lastSenderId === currentUser?.uid ? 'You: ' : ''}{room.lastMessage || 'Say hello 👋'}</p>{room.lastSenderId === currentUser?.uid && <CheckCheck size={13} className={`flex-shrink-0 ${seen ? 'text-cyan-300' : 'text-zinc-500'}`} aria-label={seen ? 'Seen' : 'Sent'} title={seen ? 'Seen' : 'Sent'} />}</div></div>
               {unread && <span className="w-2 h-2 rounded-full bg-cyan-300 flex-shrink-0"/>}
             </button>;
           })}
@@ -330,6 +330,8 @@ export default function NightgramChatExperience({
           {renderedMessages.map((msg, idx) => {
             const mine = msg.senderId === currentUser?.uid || msg.senderId === 'me' || (msg as any).sender === 'me';
             const prev = renderedMessages[idx - 1];
+            const recipientId = activeRoom?.participants?.find(id => id !== currentUser?.uid);
+            const seen = activeId === AI_ID || Boolean(mine && recipientId && (msg as any).readBy?.includes(recipientId));
             const showName = !mine && (!prev || prev.senderId !== msg.senderId);
             return <motion.div key={msg.id} initial={{ opacity: 0, y: 7 }} animate={{ opacity: 1, y: 0 }} className={`flex gap-2.5 ${mine ? 'justify-end' : 'justify-start'}`}>
               {!mine && <img src={msg.senderAvatar || activePartner.avatar || FALLBACK_AVATAR} alt="" className={`w-7 h-7 rounded-xl object-cover self-end ${showName ? '' : 'invisible'}`}/>}
@@ -339,7 +341,7 @@ export default function NightgramChatExperience({
                   {msg.imageUrl && <img src={msg.imageUrl} alt="Shared attachment" className="max-w-full max-h-72 rounded-xl mb-2 object-contain"/>}
                   {msg.text && <p className="whitespace-pre-wrap">{msg.text}</p>}
                 </div>
-                <div className="flex items-center gap-1.5 px-1 mt-1 text-[10px] text-zinc-600">{timeLabel(msg.createdAt) || msg.timestampFormatted || ''}{mine && <CheckCheck size={12} className="text-cyan-400"/>}</div>
+                <div className="flex items-center gap-1.5 px-1 mt-1 text-[10px] text-zinc-600">{timeLabel(msg.createdAt) || msg.timestampFormatted || ''}{mine && <CheckCheck size={12} className={seen ? 'text-cyan-400' : 'text-zinc-500'} aria-label={seen ? 'Seen' : 'Sent'} title={seen ? 'Seen' : 'Sent'} />}</div>
               </div>
             </motion.div>;
           })}
