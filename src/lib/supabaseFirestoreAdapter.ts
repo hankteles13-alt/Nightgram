@@ -142,6 +142,7 @@ async function findRef(ref: Ref) {
       lastMessage: c.last_message || '',
       lastMessageTime: c.last_message_time || '',
       lastSenderId: c.last_sender_id || '',
+      lastMessageReadBy: c.last_message_read_by || [],
       unreadBy: c.unread_by || [],
       updatedAt: c.updated_at || c.created_at,
       createdAt: c.created_at,
