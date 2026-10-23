@@ -69,7 +69,19 @@ export default function NightgramChatExperience({
       const found = await Promise.all(snapshot.docs.map(async snap => {
         const room = { id: snap.id, ...snap.data() } as ChatRoom;
         if (room.lastMessage && isEncryptedMessage(room.lastMessage)) {
-          try { room.lastMessage = await decryptMessageText(room.lastMessage, room.id); } catch { room.lastMessage = '🔒 Encrypted message'; }
+          const encryptedPreview = room.lastMessage;
+          try {
+            room.lastMessage = await decryptMessageText(encryptedPreview, room.id);
+            // Support previews written by older builds that used participant IDs as the key.
+            if (room.lastMessage.startsWith('🔒')) {
+              const legacyId = [...(room.participants || [])].sort().join('_');
+              if (legacyId) {
+                const legacyPreview = await decryptMessageText(encryptedPreview, legacyId);
+                if (!legacyPreview.startsWith('🔒')) room.lastMessage = legacyPreview;
+              }
+            }
+            if (room.lastMessage.startsWith('🔒')) room.lastMessage = '🔒 Encrypted message';
+          } catch { room.lastMessage = '🔒 Encrypted message'; }
         }
         return room;
       }));
@@ -296,7 +308,7 @@ export default function NightgramChatExperience({
             const p: any = partnerFor(room); const unread = Boolean(room.unreadBy?.includes(currentUser?.uid || ''));
             return <button key={room.id} onClick={() => { setActiveId(room.id); setMobileChatOpen(true); setError(''); updateDoc(doc(db, 'chats', room.id), { unreadBy: arrayRemove(currentUser?.uid) }).catch(() => {}); }} className={`w-full flex items-center gap-3 rounded-2xl p-3 text-left transition mb-1 ${activeId === room.id ? 'bg-cyan-300/[0.09] border border-cyan-200/15' : 'border border-transparent hover:bg-white/[0.035]'}`}>
               <div className="relative flex-shrink-0"><img src={p.avatar || FALLBACK_AVATAR} alt="" className="w-12 h-12 rounded-2xl object-cover bg-zinc-800"/><span className="absolute -bottom-1 -right-1 w-3 h-3 rounded-full bg-emerald-400 border-2 border-[#0b0d16]"/></div>
-              <div className="min-w-0 flex-1"><div className="flex items-center justify-between gap-2"><span className="font-semibold text-sm truncate">{p.displayName || p.username}</span><span className="text-[10px] text-zinc-600 flex-shrink-0">{timeLabel(room.updatedAt)}</span></div><p className={`text-xs mt-1 truncate ${unread ? 'text-cyan-200 font-medium' : 'text-zinc-500'}`}>{room.lastSenderId === currentUser?.uid ? 'You: ' : ''}{room.lastMessage || 'Say hello 👋'}</p></div>
+              <div className="min-w-0 flex-1"><div className="flex items-center justify-between gap-2"><span className="font-semibold text-sm truncate">{p.displayName || p.username}</span><span className={`text-[10px] flex-shrink-0 ${unread ? 'text-cyan-200' : 'text-zinc-600'}`}>{timeLabel(room.updatedAt)}</span></div><div className="flex items-center gap-1 mt-1 min-w-0"><p className={`text-xs truncate flex-1 ${unread ? 'text-cyan-200 font-medium' : 'text-zinc-500'}`}>{room.lastSenderId === currentUser?.uid ? 'You: ' : ''}{room.lastMessage || 'Say hello 👋'}</p>{room.lastSenderId === currentUser?.uid && <CheckCheck size={13} className={`flex-shrink-0 ${unread ? 'text-zinc-500' : 'text-cyan-300'}`} aria-label={unread ? 'Sent' : 'Delivered'} />}</div></div>
               {unread && <span className="w-2 h-2 rounded-full bg-cyan-300 flex-shrink-0"/>}
             </button>;
           })}
