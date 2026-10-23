@@ -80,7 +80,8 @@ export default function InstagramFeedSection({
           <p className="mx-auto mt-2 max-w-sm text-sm leading-6 text-zinc-400">Share a photo, a memory, or a moment from your day. Posts from the Nightgram community will appear here.</p>
         </div>
       ) : photoPosts.map((post) => {
-        const images = (post.images?.filter(Boolean).length ? post.images.filter(Boolean) : [post.image]).filter(Boolean);
+        const availableImages = (post.images || []).filter(Boolean);
+        const images = (availableImages.length ? availableImages : [post.image]).filter(Boolean);
         const slide = Math.min(slides[post.id] || 0, Math.max(0, images.length - 1));
         const liked = Boolean(post.isLiked);
         const saved = Boolean(post.isSaved);
