@@ -156,10 +156,30 @@ export default function NightgramChatExperience({
     username: activeId.split('_').find(id => id !== currentUser?.uid) || 'chat',
     displayName: 'Conversation', avatar: FALLBACK_AVATAR
   };
-  const visibleRooms = useMemo(() => rooms.filter(room => {
+  // Collapse legacy/duplicate conversation documents so each person appears only once.
+  // Prefer the most recently updated room for that person.
+  const uniqueRooms = useMemo(() => {
+    const newestFirst = [...rooms].sort((a, b) => {
+      const aTime = new Date(a.updatedAt || 0).getTime() || 0;
+      const bTime = new Date(b.updatedAt || 0).getTime() || 0;
+      return bTime - aTime;
+    });
+    const seenPeople = new Set<string>();
+    return newestFirst.filter(room => {
+      const partner = partnerFor(room);
+      const participantId = partner.uid || room.participants?.find(id => id !== currentUser?.uid) || '';
+      const identity = participantId || partner.username?.trim().toLowerCase() || room.id;
+      if (seenPeople.has(identity)) return false;
+      seenPeople.add(identity);
+      return true;
+    });
+  }, [rooms, currentUser?.uid]);
+
+  const visibleRooms = useMemo(() => uniqueRooms.filter(room => {
     const p = partnerFor(room);
-    return [p.displayName, p.username, room.lastMessage || ''].some(v => v.toLowerCase().includes(search.toLowerCase()));
-  }), [rooms, search, currentUser?.uid]);
+    const term = search.trim().toLowerCase();
+    return !term || [p.displayName, p.username, room.lastMessage || ''].some(v => v.toLowerCase().includes(term));
+  }), [uniqueRooms, search, currentUser?.uid]);
 
   const openNewChat = async () => {
     setShowNewChat(true); setLoadingUsers(true); setError('');
