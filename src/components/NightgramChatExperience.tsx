@@ -5,7 +5,7 @@ import {
   Paperclip, Search, Send, ShieldCheck, Smile, Sparkles, UserPlus, X
 } from 'lucide-react';
 import type { ChatMessage, ChatRoom, UserProfile, Message } from '../types';
-import { db, collection, doc, getDoc, getDocs, setDoc, addDoc, updateDoc, onSnapshot, query, where, orderBy, arrayRemove, arrayUnion } from '../lib/supabaseFirestore';
+import { db, collection, doc, getDoc, getDocs, setDoc, addDoc, updateDoc, onSnapshot, query, where, orderBy, arrayUnion } from '../lib/supabaseFirestore';
 import { encryptMessageText, decryptMessageText, isEncryptedMessage } from '../lib/e2ee';
 import { optimizeImageForFirestore } from '../lib/imageOptimizer';
 import { fetchAiCompanionReply, type ChatTurn } from '../lib/aiCompanion';
