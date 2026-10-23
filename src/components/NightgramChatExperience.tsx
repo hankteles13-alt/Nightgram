@@ -86,7 +86,19 @@ export default function NightgramChatExperience({
         const data = snap.data();
         let body = data.text || '';
         if (body && isEncryptedMessage(body)) {
-          try { body = await decryptMessageText(body, activeId); } catch { body = '🔒 This message could not be decrypted on this device.'; }
+          try {
+            body = await decryptMessageText(body, activeId);
+            // Older builds encrypted new-chat messages with the sorted participant IDs
+            // instead of the database conversation UUID. Try that legacy key for history.
+            if (body.startsWith('🔒')) {
+              const room = rooms.find(item => item.id === activeId);
+              const legacyId = [...(room?.participants || [])].sort().join('_');
+              if (legacyId) {
+                const legacyBody = await decryptMessageText(data.text || '', legacyId);
+                if (!legacyBody.startsWith('🔒')) body = legacyBody;
+              }
+            }
+          } catch { body = '🔒 This message could not be decrypted on this device.'; }
         }
         return {
           ...data, id: snap.id, chatId: activeId, text: body,
