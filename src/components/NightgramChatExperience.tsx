@@ -143,7 +143,11 @@ export default function NightgramChatExperience({
         [`participantProfiles.${uid}`]: them
       });
     }
-    setActiveId(id); setMobileChatOpen(true); setShowNewChat(false); setError('');
+    // Resolve the database conversation UUID before selecting the room.
+    // Both users must encrypt/decrypt with this same ID or the recipient cannot read messages.
+    const resolvedRoom = await getDoc(ref);
+    const conversationId = resolvedRoom.data()?.id;
+    setActiveId(conversationId || id); setMobileChatOpen(true); setShowNewChat(false); setError('');
   };
 
   const partnerFor = (room: ChatRoom) => {
