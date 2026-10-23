@@ -1,0 +1,1 @@
+create index if not exists memory_capsules_user_open_at_idx on public.memory_capsules (user_id, open_at);
