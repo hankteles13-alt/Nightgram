@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import {
-  ArrowLeft, Check, CheckCheck, Image as ImageIcon, MessageCircle, MoreHorizontal,
+  ArrowLeft, CheckCheck, MessageCircle, MoreHorizontal,
   Paperclip, Search, Send, ShieldCheck, Smile, Sparkles, UserPlus, X
 } from 'lucide-react';
 import type { ChatMessage, ChatRoom, UserProfile, Message } from '../types';
@@ -280,7 +280,7 @@ export default function NightgramChatExperience({
           <div className="mx-auto max-w-sm text-center mb-7"><div className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.03] px-3 py-1.5 text-[10px] text-zinc-500"><ShieldCheck size={12} className="text-emerald-400"/> Messages stay in this conversation</div><p className="text-[11px] text-zinc-600 mt-3">A little space to connect, share, and be yourself.</p></div>
           {renderedMessages.length === 0 && !aiTyping && <div className="h-[35%] min-h-40 flex flex-col items-center justify-center text-center"><div className="w-16 h-16 rounded-3xl bg-gradient-to-br from-cyan-300/15 to-purple-400/15 border border-white/10 flex items-center justify-center"><MessageCircle size={27} className="text-cyan-200"/></div><h3 className="font-semibold mt-4">Start with a hello</h3><p className="text-xs text-zinc-500 mt-2 max-w-xs">{activeId === AI_ID ? 'Ask Teles AI a question or share what you are working on.' : `Send a message to ${activePartner.displayName || activePartner.username}.`}</p><button onClick={() => { setText('Hey 👋'); inputRef.current?.focus(); }} className="mt-4 rounded-full border border-cyan-300/20 bg-cyan-300/10 px-4 py-2 text-xs text-cyan-100 hover:bg-cyan-300/15">Say hello 👋</button></div>}
           {renderedMessages.map((msg, idx) => {
-            const mine = msg.senderId === currentUser?.uid || msg.senderId === 'me' || msg.sender === 'me';
+            const mine = msg.senderId === currentUser?.uid || msg.senderId === 'me' || (msg as any).sender === 'me';
             const prev = renderedMessages[idx - 1];
             const showName = !mine && (!prev || prev.senderId !== msg.senderId);
             return <motion.div key={msg.id} initial={{ opacity: 0, y: 7 }} animate={{ opacity: 1, y: 0 }} className={`flex gap-2.5 ${mine ? 'justify-end' : 'justify-start'}`}>
