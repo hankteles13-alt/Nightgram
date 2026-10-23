@@ -77,6 +77,7 @@ async function rowsFor(spec: QuerySpec): Promise<any[]> {
         senderAvatar: '',
         text: m.content || '',
         createdAt: m.created_at,
+        readBy: m.read_by || [],
       }));
     }
 
@@ -89,6 +90,7 @@ async function rowsFor(spec: QuerySpec): Promise<any[]> {
       lastMessage: c.last_message || '',
       lastMessageTime: c.last_message_time || '',
       lastSenderId: c.last_sender_id || '',
+      lastMessageReadBy: c.last_message_read_by || [],
       unreadBy: c.unread_by || [],
       updatedAt: c.updated_at || c.created_at,
       createdAt: c.created_at,
@@ -221,6 +223,7 @@ export const updateDoc = async (ref: Ref, value: Record<string, any>) => {
     if (value.lastMessage !== undefined) patch.last_message = value.lastMessage;
     if (value.lastMessageTime !== undefined) patch.last_message_time = value.lastMessageTime;
     if (value.lastSenderId !== undefined) patch.last_sender_id = value.lastSenderId;
+    if (value.lastMessageReadBy !== undefined) patch.last_message_read_by = value.lastMessageReadBy;
     if (value.updatedAt !== undefined) patch.updated_at = value.updatedAt;
     if (value.unreadBy !== undefined) {
       const operation = value.unreadBy;
