@@ -8,7 +8,7 @@
   "description": "Nightgram — Midnight Frequency",
   "icons": [
     {
-      "src": "/icons/nightgram-icon.svg",
+      "src": "./icons/nightgram-icon.svg",
       "sizes": "any",
       "type": "image/svg+xml",
       "purpose": "any maskable"
