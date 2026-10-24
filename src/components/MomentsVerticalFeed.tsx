@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { ArrowLeft, Clock3, LoaderCircle, Pause, Play, Plus, Volume2, VolumeX } from 'lucide-react';
+import { ArrowLeft, Clock3, LoaderCircle, MessageCircle, Pause, Play, Plus, Send, Volume2, VolumeX, X } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 
 type MomentItem = {
@@ -14,6 +14,7 @@ type MomentItem = {
   signedUrl: string;
 };
 
+type MomentComment = { id: string; moment_id: string; user_id: string; content: string; created_at: string };
 type Props = { onClose: () => void; onAddMoment: () => void; currentUserId?: string };
 
 function expiryLabel(expiresAt: string) {
@@ -32,6 +33,12 @@ export default function MomentsVerticalFeed({ onClose, onAddMoment, currentUserI
   const [pausedIds, setPausedIds] = useState<string[]>([]);
   const feedRef = useRef<HTMLDivElement>(null);
   const videoRefs = useRef(new Map<string, HTMLVideoElement>());
+  const [commentsMomentId, setCommentsMomentId] = useState<string | null>(null);
+  const [comments, setComments] = useState<MomentComment[]>([]);
+  const [commentDraft, setCommentDraft] = useState('');
+  const [commentsLoading, setCommentsLoading] = useState(false);
+  const [commentSending, setCommentSending] = useState(false);
+  const [commentError, setCommentError] = useState('');
 
   useEffect(() => {
     let cancelled = false;
@@ -93,6 +100,61 @@ export default function MomentsVerticalFeed({ onClose, onAddMoment, currentUserI
     }
   };
 
+  const loadComments = async (momentId: string) => {
+    setCommentsLoading(true);
+    setCommentError('');
+    const { data, error: queryError } = await supabase
+      .from('moment_comments')
+      .select('id,moment_id,user_id,content,created_at')
+      .eq('moment_id', momentId)
+      .order('created_at', { ascending: true })
+      .limit(100);
+    if (queryError) {
+      setCommentError('Comments could not be loaded. Please try again.');
+      setComments([]);
+    } else {
+      setComments((data || []) as MomentComment[]);
+    }
+    setCommentsLoading(false);
+  };
+
+  const openComments = (momentId: string) => {
+    setCommentsMomentId(momentId);
+    setCommentDraft('');
+    void loadComments(momentId);
+  };
+
+  const submitComment = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const text = commentDraft.trim();
+    const momentId = commentsMomentId;
+    if (!momentId || !text || commentSending) return;
+    if (text.length > 500) {
+      setCommentError('Comments must be 500 characters or fewer.');
+      return;
+    }
+    const { data: authData } = await supabase.auth.getUser();
+    const authorId = authData.user?.id || currentUserId;
+    if (!authorId) {
+      setCommentError('Please sign in to comment.');
+      return;
+    }
+    setCommentSending(true);
+    setCommentError('');
+    const { error: insertError } = await supabase.from('moment_comments').insert({
+      moment_id: momentId,
+      user_id: authorId,
+      content: text,
+    });
+    if (insertError) {
+      setCommentError('Your comment could not be sent. Please try again.');
+    } else {
+      setCommentDraft('');
+      await loadComments(momentId);
+    }
+    setCommentSending(false);
+  };
+
   const scrollBySlide = (direction: number) => {
     const root = feedRef.current;
     if (root) root.scrollBy({ top: direction * root.clientHeight, behavior: 'smooth' });
@@ -111,7 +173,7 @@ export default function MomentsVerticalFeed({ onClose, onAddMoment, currentUserI
       ) : (
         <div ref={feedRef} tabIndex={0} onKeyDown={e => { if (e.key === 'ArrowDown' || e.key === 'PageDown') { e.preventDefault(); scrollBySlide(1); } if (e.key === 'ArrowUp' || e.key === 'PageUp') { e.preventDefault(); scrollBySlide(-1); } }} className="h-full overflow-y-auto snap-y snap-mandatory overscroll-contain [scrollbar-width:none]">
           {moments.map(moment => (
-            <section key={moment.id} className="ngm-slide relative flex h-[100dvh] snap-start snap-always items-center justify-center overflow-hidden bg-[#05060a]">
+            <section key={moment.id} className="ngm-slide relative flex h-[100svh] min-h-0 snap-start snap-always items-center justify-center overflow-hidden bg-[#05060a]">
               {moment.media_type === 'video' ? (
                 <video ref={node => { if (node) videoRefs.current.set(moment.id, node); else videoRefs.current.delete(moment.id); }} src={moment.signedUrl} playsInline loop muted={muted} preload="metadata" onClick={() => togglePause(moment.id)} className="absolute inset-0 h-full w-full object-contain bg-black" />
               ) : <img src={moment.signedUrl} alt={moment.caption || 'Nightgram Moment'} loading="lazy" className="absolute inset-0 h-full w-full object-contain bg-black" />}
@@ -126,8 +188,30 @@ export default function MomentsVerticalFeed({ onClose, onAddMoment, currentUserI
                   <button type="button" onClick={() => togglePause(moment.id)} aria-label={pausedIds.includes(moment.id) ? 'Play video' : 'Pause video'} className="grid h-12 w-12 place-items-center rounded-full bg-black/55 text-xl backdrop-blur">{pausedIds.includes(moment.id) ? <Play className="h-5 w-5" /> : <Pause className="h-5 w-5" />}</button>
                   <button type="button" onClick={() => setMuted(value => !value)} aria-label={muted ? 'Unmute videos' : 'Mute videos'} className="grid h-12 w-12 place-items-center rounded-full bg-black/55 backdrop-blur">{muted ? <VolumeX className="h-5 w-5" /> : <Volume2 className="h-5 w-5" />}</button>
                 </>}
+                <button type="button" onClick={() => openComments(moment.id)} aria-label="Comment on Moment" title="Comments" className="grid h-12 w-12 place-items-center rounded-full bg-black/65 backdrop-blur hover:bg-black/85"><MessageCircle className="h-5 w-5" /></button>
                 <button type="button" onClick={() => scrollBySlide(1)} aria-label="Next Moment" className="grid h-12 w-12 place-items-center rounded-full bg-black/55 text-sm font-bold backdrop-blur">↓</button>
               </div>
+              {commentsMomentId === moment.id && (
+                <div className="absolute inset-x-3 bottom-20 z-20 mx-auto flex h-[min(58dvh,480px)] max-w-md flex-col overflow-hidden rounded-2xl border border-white/15 bg-[#101018]/95 text-white shadow-2xl backdrop-blur-xl" onClick={event => event.stopPropagation()}>
+                  <header className="flex items-center justify-between border-b border-white/10 px-4 py-3">
+                    <div><h2 className="font-bold">Comments</h2><p className="text-xs text-zinc-400">{comments.length} {comments.length === 1 ? 'comment' : 'comments'}</p></div>
+                    <button type="button" onClick={() => setCommentsMomentId(null)} aria-label="Close comments" className="grid h-9 w-9 place-items-center rounded-full bg-white/10"><X className="h-4 w-4" /></button>
+                  </header>
+                  <div className="min-h-0 flex-1 space-y-3 overflow-y-auto px-4 py-3">
+                    {commentsLoading ? <p className="py-6 text-center text-sm text-zinc-400">Loading comments…</p> : comments.length === 0 ? <p className="py-6 text-center text-sm text-zinc-400">No comments yet. Start the conversation.</p> : comments.map(comment => (
+                      <article key={comment.id} className="rounded-xl bg-white/[0.06] px-3 py-2">
+                        <div className="mb-1 flex items-center justify-between gap-2"><p className="text-xs font-semibold text-cyan-200">{comment.user_id === currentUserId ? 'You' : 'Nightgram member'}</p><time className="shrink-0 text-[10px] text-zinc-500">{new Date(comment.created_at).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</time></div>
+                        <p className="whitespace-pre-wrap break-words text-sm text-zinc-100">{comment.content}</p>
+                      </article>
+                    ))}
+                  </div>
+                  {commentError && <p role="alert" className="px-4 pb-2 text-xs text-rose-300">{commentError}</p>}
+                  <form onSubmit={submitComment} className="flex items-end gap-2 border-t border-white/10 p-3">
+                    <textarea value={commentDraft} onChange={event => setCommentDraft(event.target.value.slice(0, 500))} placeholder="Write a comment…" rows={1} maxLength={500} className="max-h-24 min-h-10 flex-1 resize-y rounded-xl border border-white/10 bg-black/40 px-3 py-2.5 text-sm outline-none placeholder:text-zinc-500 focus:border-cyan-400/60" />
+                    <button type="submit" disabled={!commentDraft.trim() || commentSending} aria-label="Send comment" className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-cyan-400 to-violet-600 disabled:opacity-40">{commentSending ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}</button>
+                  </form>
+                </div>
+              )}
             </section>
           ))}
         </div>
