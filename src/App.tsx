@@ -2091,6 +2091,12 @@ export default function App() {
         currentUser={currentUser}
         onSelectUser={(user) => setViewingUserProfile(user)}
         onOpenChatWithUser={handleOpenChatWithUser}
+        onToggleFollowUser={(user, shouldFollow) => handleFollowCreator({
+          username: user.username,
+          displayName: user.displayName,
+          avatar: user.avatar,
+          isFollowing: shouldFollow,
+        })}
       />
 
       {/* User Profile Modal when a Citizen is clicked/searched */}
