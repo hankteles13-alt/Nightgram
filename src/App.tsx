@@ -1494,16 +1494,16 @@ export default function App() {
         {/* Search Citizens Input Trigger */}
         <div className="flex-1 max-w-xs sm:max-w-sm md:max-w-md mx-2 sm:mx-4">
           <button
-            id="header-search-citizens-btn"
+            id="header-explore-search-btn"
             type="button"
             onClick={() => setActiveTab('explore')}
             className="w-full flex items-center justify-between px-3 py-1.5 sm:py-2 rounded-xl bg-[#12121a]/90 hover:bg-[#181826] border border-zinc-800 hover:border-cyan-500/50 text-zinc-400 hover:text-zinc-200 transition shadow-inner group cursor-pointer"
-            title="Search citizens by username or name (Cmd+K)"
+            title="Explore people and photos (Cmd+K)"
           >
             <div className="flex items-center space-x-2 truncate min-w-0">
               <Search className="w-3.5 h-3.5 text-cyan-400 group-hover:text-cyan-300 flex-shrink-0" />
               <span className="text-xs truncate font-sans text-zinc-400 group-hover:text-zinc-200">
-                Search <span className="text-cyan-400 font-mono font-semibold">@username</span> or name...
+                Explore <span className="text-cyan-400 font-mono font-semibold">@username</span>, people and photos...
               </span>
             </div>
             <span className="hidden sm:inline-block text-[10px] font-mono px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-400 border border-zinc-700">
@@ -1927,15 +1927,6 @@ export default function App() {
         >
           <Home className="w-5 h-5" />
           <span className="hidden sm:inline text-xs font-bold tracking-wide font-sans">Feed</span>
-        </button>
-        <button
-          id="nav-explore-btn"
-          onClick={() => setActiveTab('explore')}
-          className={`flex items-center space-x-1.5 sm:space-x-2 px-2.5 sm:px-3 py-2 rounded-xl transition-all cursor-pointer ${activeTab === 'explore' ? 'text-cyan-300 bg-cyan-950/40 border border-cyan-500/40' : 'text-zinc-500 hover:text-zinc-300 hover:bg-zinc-900/40'}`}
-          title="Explore creators and photos"
-        >
-          <Search className="w-5 h-5" />
-          <span className="hidden sm:inline text-xs font-bold tracking-wide font-sans">Explore</span>
         </button>
 <button
           id="nav-memories-btn"
