@@ -122,3 +122,12 @@ export const getRedirectResult = async (): Promise<{ user: AppUser | null } | nu
 };
 
 export const handleOAuthCallbackInPopup = (): boolean => false;
+
+
+export const sendPasswordResetEmail = async (email: string) => {
+  const cleanEmail = email.trim().toLowerCase();
+  if (!cleanEmail || !cleanEmail.includes('@')) throw new Error('Enter your email address first.');
+  const redirectTo = window.location.hostname.endsWith('github.io') ? `${window.location.origin}/Nightgram/` : `${window.location.origin}/`;
+  const { error } = await supabase.auth.resetPasswordForEmail(cleanEmail, { redirectTo });
+  if (error) throw error;
+};
