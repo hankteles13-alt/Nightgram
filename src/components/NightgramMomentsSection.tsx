@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { Camera, Clock3, ImagePlus, LoaderCircle, LockKeyhole, Trash2, UploadCloud, Video } from 'lucide-react';
+import { Camera, Clock3, ImagePlus, LoaderCircle, LockKeyhole, Play, Trash2, UploadCloud, Video } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import MomentsVerticalFeed from './MomentsVerticalFeed';
 
 type Moment = {
   id: string;
@@ -37,6 +38,7 @@ export default function NightgramMomentsSection({ currentUser }: Props) {
   const [userId, setUserId] = useState('');
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
+  const [showVerticalFeed, setShowVerticalFeed] = useState(false);
 
   const loadMoments = useCallback(async () => {
     setLoading(true);
@@ -133,6 +135,8 @@ export default function NightgramMomentsSection({ currentUser }: Props) {
     await loadMoments();
   };
 
+  if (showVerticalFeed) return <MomentsVerticalFeed onClose={() => setShowVerticalFeed(false)} currentUserId={userId} />;
+
   return (
     <main className="mx-auto w-full max-w-5xl px-3 py-5 sm:px-6">
       <header className="mb-6 rounded-3xl border border-cyan-500/20 bg-gradient-to-br from-cyan-950/50 via-[#10101a] to-violet-950/40 p-5 sm:p-7">
@@ -169,7 +173,7 @@ export default function NightgramMomentsSection({ currentUser }: Props) {
       {notice && <p role="status" className="mb-4 rounded-xl border border-emerald-500/30 bg-emerald-950/20 p-3 text-sm text-emerald-200">{notice}</p>}
 
       <section>
-        <div className="mb-4 flex items-center justify-between"><h2 className="text-lg font-bold text-white">Active Moments</h2><button onClick={() => void loadMoments()} type="button" className="rounded-lg border border-zinc-800 px-3 py-1.5 text-xs text-zinc-300 hover:border-cyan-500/40">Refresh</button></div>
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-2"><h2 className="text-lg font-bold text-white">Active Moments</h2><div className="flex items-center gap-2"><button onClick={() => setShowVerticalFeed(true)} type="button" className="inline-flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-cyan-500 to-violet-600 px-3 py-1.5 text-xs font-bold text-white hover:brightness-110"><Play className="h-3.5 w-3.5" /> Full-screen feed</button><button onClick={() => void loadMoments()} type="button" className="rounded-lg border border-zinc-800 px-3 py-1.5 text-xs text-zinc-300 hover:border-cyan-500/40">Refresh</button></div></div>
         {loading ? <div className="flex items-center gap-2 py-10 text-sm text-zinc-400"><LoaderCircle className="h-4 w-4 animate-spin" /> Loading Moments…</div> : moments.length === 0 ? <div className="rounded-2xl border border-dashed border-zinc-800 px-5 py-12 text-center"><Camera className="mx-auto h-8 w-8 text-zinc-600" /><p className="mt-3 font-semibold text-zinc-300">No active Moments yet</p><p className="mt-1 text-sm text-zinc-500">Share the first one above.</p></div> : (
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {moments.map((moment) => <article key={moment.id} className="overflow-hidden rounded-2xl border border-zinc-800 bg-[#0b0b12]">
