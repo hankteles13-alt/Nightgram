@@ -145,9 +145,9 @@ export default function AuthScreen({ onAuthSuccess, pendingTwoFactorUser, onSign
           key={method + isSignUp}
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
-          className="grid min-h-screen w-full lg:grid-cols-[0.92fr_1.08fr]"
+          className="mx-auto grid min-h-screen w-full max-w-[1440px] lg:min-h-0 lg:h-[min(760px,calc(100svh-48px))] lg:max-w-[1240px] lg:grid-cols-[1fr_1fr] lg:overflow-hidden lg:rounded-[28px] lg:border lg:border-white/10"
         >
-          <section className="relative flex min-h-[300px] flex-col justify-between overflow-hidden bg-[#10132f] px-7 py-8 sm:px-12 sm:py-10 lg:min-h-screen lg:px-16 lg:py-14">
+          <section className="relative flex min-h-[300px] flex-col justify-between overflow-hidden bg-[#10132f] px-7 py-8 sm:px-12 sm:py-10 lg:min-h-0 lg:px-12 lg:py-10 xl:px-16 xl:py-12">
             <div className="flex items-center gap-3">
               <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-violet-600 text-white"><Moon size={27} fill="currentColor" /></div>
               <span className="text-2xl font-bold tracking-tight">Nightgram</span>
@@ -164,8 +164,8 @@ export default function AuthScreen({ onAuthSuccess, pendingTwoFactorUser, onSign
             <p className="hidden text-sm text-slate-500 lg:block">A place for the moments worth keeping.</p>
           </section>
 
-          <section className="flex items-center justify-center bg-[#09090d] px-5 py-10 sm:px-10 lg:px-14 xl:px-20">
-            <div className="w-full max-w-[540px]">
+          <section className="flex items-center justify-center bg-[#09090d] px-5 py-10 sm:px-10 lg:min-h-0 lg:overflow-y-auto lg:px-10 lg:py-8 xl:px-14">
+            <div className="w-full max-w-[440px] py-2">
               <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">{method === 'phone' ? 'Sign in with your phone' : isSignUp ? 'Create your account' : 'Welcome back'}</h1>
               <p className="mt-3 text-base text-slate-400 sm:text-lg">{method === 'phone' ? 'We will send you a verification code.' : isSignUp ? 'Join Nightgram and stay close to your people.' : 'Sign in to continue to Nightgram'}</p>
 
