@@ -1496,7 +1496,7 @@ export default function App() {
           <button
             id="header-search-citizens-btn"
             type="button"
-            onClick={() => setShowSearchModal(true)}
+            onClick={() => setActiveTab('explore')}
             className="w-full flex items-center justify-between px-3 py-1.5 sm:py-2 rounded-xl bg-[#12121a]/90 hover:bg-[#181826] border border-zinc-800 hover:border-cyan-500/50 text-zinc-400 hover:text-zinc-200 transition shadow-inner group cursor-pointer"
             title="Search citizens by username or name (Cmd+K)"
           >
