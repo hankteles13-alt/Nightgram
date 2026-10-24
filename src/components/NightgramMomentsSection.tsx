@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { Camera, Clock3, ImagePlus, LoaderCircle, LockKeyhole, Play, Trash2, UploadCloud, Video } from 'lucide-react';
+import { Camera, Clock3, ImagePlus, LoaderCircle, LockKeyhole, Play, Trash2, UploadCloud, Video, X } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import MomentsVerticalFeed from './MomentsVerticalFeed';
 
@@ -38,7 +38,7 @@ export default function NightgramMomentsSection({ currentUser }: Props) {
   const [userId, setUserId] = useState('');
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
-  const [showVerticalFeed, setShowVerticalFeed] = useState(false);
+  const [showVerticalFeed, setShowVerticalFeed] = useState(true);
 
   const loadMoments = useCallback(async () => {
     setLoading(true);
@@ -122,6 +122,7 @@ export default function NightgramMomentsSection({ currentUser }: Props) {
     setNotice('Moment shared. It will disappear from the feed after 24 hours.');
     await loadMoments();
     setUploading(false);
+    setShowVerticalFeed(true);
   };
 
   const deleteMoment = async (moment: Moment) => {
@@ -135,7 +136,7 @@ export default function NightgramMomentsSection({ currentUser }: Props) {
     await loadMoments();
   };
 
-  if (showVerticalFeed) return <MomentsVerticalFeed onClose={() => setShowVerticalFeed(false)} currentUserId={userId} />;
+  if (showVerticalFeed) return <MomentsVerticalFeed onClose={() => setShowVerticalFeed(false)} onAddMoment={() => setShowVerticalFeed(false)} currentUserId={userId} />;
 
   return (
     <main className="mx-auto w-full max-w-5xl px-3 py-5 sm:px-6">
@@ -148,7 +149,7 @@ export default function NightgramMomentsSection({ currentUser }: Props) {
       </header>
 
       <form onSubmit={shareMoment} className="mb-7 rounded-2xl border border-zinc-800 bg-[#0b0b12] p-4 sm:p-5">
-        <h2 className="mb-4 flex items-center gap-2 font-bold text-white"><UploadCloud className="h-5 w-5 text-cyan-300" /> Share a Moment</h2>
+        <div className="mb-4 flex items-center justify-between gap-3"><h2 className="flex items-center gap-2 font-bold text-white"><UploadCloud className="h-5 w-5 text-cyan-300" /> Share a Moment</h2><button type="button" onClick={() => setShowVerticalFeed(true)} aria-label="Cancel and return to Moments feed" title="Back to Moments" className="grid h-9 w-9 place-items-center rounded-full border border-zinc-700 text-zinc-300 transition hover:border-cyan-400 hover:text-white"><X className="h-4 w-4" /></button></div>
         <label htmlFor="nightgram-moment-file" className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-zinc-700 bg-black/20 px-4 py-6 text-center transition hover:border-cyan-500/50">
           {selectedFile?.type.startsWith('video/') ? <Video className="h-7 w-7 text-cyan-300" /> : <ImagePlus className="h-7 w-7 text-cyan-300" />}
           <span className="text-sm font-semibold text-zinc-200">{selectedFile ? selectedFile.name : 'Choose a photo or video'}</span>
