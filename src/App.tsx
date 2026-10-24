@@ -48,6 +48,7 @@ import AvatarStatusIndicator from './components/AvatarStatusIndicator';
 import PullToRefresh from './components/PullToRefresh';
 import { AppSettingsModal } from './components/AppSettingsModal';
 import SearchUsersModal from './components/SearchUsersModal';
+import ExploreSection from './components/ExploreSection';
 import UserProfileModal from './components/UserProfileModal';
 import { optimizeImageForFirestore } from './lib/imageOptimizer';
 import { auth, onAuthStateChanged, signOut } from './lib/supabaseAuth';
@@ -96,7 +97,7 @@ export default function App() {
     localStorage.setItem('nightgram_theme', nextTheme ? 'true_black' : 'deep_charcoal');
   };
 
-  const [activeTab, setActiveTab] = useState<'feed' | 'shorts' | 'messages' | 'profile' | 'memories' | 'moments'>('feed');
+  const [activeTab, setActiveTab] = useState<'feed' | 'explore' | 'shorts' | 'messages' | 'profile' | 'memories' | 'moments'>('feed');
   const [hasAcceptedTerms, setHasAcceptedTerms] = useState<boolean>(() => {
     return localStorage.getItem('niytee_agreed_terms') === 'true';
   });
@@ -1141,19 +1142,33 @@ export default function App() {
 
     setCurrentUser(updatedUser);
 
-    // Sync to Firestore if logged in
-    if (currentUser.uid) {
-      try {
+    // Persist the current user's following list and the target user's follower list.
+    try {
+      if (currentUser.uid) {
         await updateDoc(doc(db, 'users', currentUser.uid), {
           following: nextFollowingCount,
           followingList: nextFollowingList,
         });
-      } catch (err) {
-        console.warn('Notice syncing follow list to Firestore:', err);
       }
+      const targetQuery = query(collection(db, 'users'), where('username', '==', creator.username));
+      const targetSnapshot = await getDocs(targetQuery);
+      const targetDoc = targetSnapshot.docs[0];
+      if (targetDoc && currentUser.uid) {
+        const targetData = targetDoc.data();
+        const existingFollowers: string[] = Array.isArray(targetData.followersList) ? targetData.followersList : [];
+        const myUsername = String(currentUser.username || '').toLowerCase();
+        const nextFollowers = creator.isFollowing
+          ? (existingFollowers.some((name) => name.toLowerCase() === myUsername) ? existingFollowers : [...existingFollowers, myUsername])
+          : existingFollowers.filter((name) => name.toLowerCase() !== myUsername);
+        await updateDoc(doc(db, 'users', targetDoc.id), {
+          followers: nextFollowers.length,
+          followersList: nextFollowers,
+        });
+      }
+    } catch (err) {
+      console.warn('Could not fully sync follow relationship:', err);
     }
 
-    // Add notification when following a creator
     if (creator.isFollowing) {
       setNotifications((prev) => [
         {
@@ -1163,7 +1178,7 @@ export default function App() {
             username: creator.username,
             avatar: creator.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150',
           },
-          content: `You followed @${creator.username} from Shorts!`,
+          content: `You followed @${creator.username} on Nightgram.`,
           time: 'Just now',
           read: false,
         },
@@ -1802,6 +1817,22 @@ export default function App() {
                 </PullToRefresh>
               )}
 
+              {activeTab === 'explore' && (
+                <div className="w-full h-full flex-1 min-h-0 overflow-y-auto" id="explore-tab-pane">
+                  <ExploreSection
+                    currentUser={currentUser}
+                    posts={posts}
+                    onOpenUserProfile={(user) => setViewingUserProfile(user)}
+                    onToggleFollow={(user, shouldFollow) => handleFollowCreator({
+                      username: user.username,
+                      displayName: user.displayName,
+                      avatar: user.avatar,
+                      isFollowing: shouldFollow,
+                    })}
+                  />
+                </div>
+              )}
+
               {activeTab === 'shorts' && (
                 <div className="w-full h-full flex-1 flex flex-col min-h-0 overflow-hidden" id="shorts-tab-pane">
                   <ReelsSection
@@ -1896,6 +1927,15 @@ export default function App() {
         >
           <Home className="w-5 h-5" />
           <span className="hidden sm:inline text-xs font-bold tracking-wide font-sans">Feed</span>
+        </button>
+        <button
+          id="nav-explore-btn"
+          onClick={() => setActiveTab('explore')}
+          className={`flex items-center space-x-1.5 sm:space-x-2 px-2.5 sm:px-3 py-2 rounded-xl transition-all cursor-pointer ${activeTab === 'explore' ? 'text-cyan-300 bg-cyan-950/40 border border-cyan-500/40' : 'text-zinc-500 hover:text-zinc-300 hover:bg-zinc-900/40'}`}
+          title="Explore creators and photos"
+        >
+          <Search className="w-5 h-5" />
+          <span className="hidden sm:inline text-xs font-bold tracking-wide font-sans">Explore</span>
         </button>
 <button
           id="nav-memories-btn"
