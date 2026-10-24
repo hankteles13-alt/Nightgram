@@ -67,3 +67,14 @@ body {
 :focus-visible {
   outline-color: #a78bfa;
 }
+
+/* Keep the visual language calm and social, not neon or AI-themed. */
+[class*="shadow-[0_0_"] {
+  box-shadow: none !important;
+}
+[class*="drop-shadow-[0_0_"] {
+  filter: none !important;
+}
+[class*="animate-pulse"] {
+  animation-duration: 2.8s !important;
+}
