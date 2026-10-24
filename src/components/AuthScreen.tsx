@@ -112,8 +112,11 @@ export default function AuthScreen({ onAuthSuccess, pendingTwoFactorUser, onSign
   const handleEmailAuth = async () => {
     setError(''); setShowSignUpSuggest(false);
     if (!isEmailDomainAuthorized(email)) { setError('Please use a valid email address from a supported or legitimate domain.'); return; }
+    if (isSignUp && !fullName.trim()) { setError('Enter your full name.'); return; }
+    if (isSignUp && password !== confirmPassword) { setError('Passwords do not match.'); return; }
+    if (isSignUp && !acceptedTerms) { setError('Please agree to the Terms and Privacy Policy.'); return; }
     setLoading(true);
-    try { const result = isSignUp ? await createUserWithEmailAndPassword(auth, email, password) : await signInWithEmailAndPassword(auth, email, password); await handleUserDocCheck(result.user); }
+    try { const result = isSignUp ? await createUserWithEmailAndPassword(auth, email, password, fullName) : await signInWithEmailAndPassword(auth, email, password); await handleUserDocCheck(result.user); }
     catch (e: any) { setError(e?.message || 'Authentication failed.'); if (!isSignUp && /invalid login credentials|user not found/i.test(e?.message || '')) setShowSignUpSuggest(true); }
     finally { setLoading(false); }
   };
