@@ -15,7 +15,7 @@ import {
   Calendar,
   ExternalLink
 } from 'lucide-react';
-import { doc, updateDoc, db } from '../lib/supabaseFirestore';
+import { } from '../lib/supabaseFirestore';
 
 interface UserProfileModalProps {
   user: UserProfile | { uid?: string; username: string; displayName?: string; avatar?: string; bio?: string; followers?: number; following?: number; stars?: number } | null;
@@ -24,6 +24,7 @@ interface UserProfileModalProps {
   isOpen: boolean;
   onClose: () => void;
   onOpenChatWithUser?: (user: { uid?: string; username: string; displayName?: string; avatar?: string }) => void;
+  onToggleFollowUser?: (user: UserProfile, shouldFollow: boolean) => void;
 }
 
 export default function UserProfileModal({
@@ -45,7 +46,7 @@ export default function UserProfileModal({
       setLocalFollowersCount(user.followers || 0);
       setIsFollowing(false);
     }
-  }, [user]);
+  }, [user, currentUser?.followingList]);
 
   if (!isOpen || !user) return null;
 
@@ -62,22 +63,12 @@ export default function UserProfileModal({
     }
   };
 
-  const handleToggleFollow = async () => {
-    if (isMe) return;
+  const handleToggleFollow = () => {
+    if (isMe || !onToggleFollowUser) return;
     const nextFollowing = !isFollowing;
     setIsFollowing(nextFollowing);
-    const updatedCount = nextFollowing ? localFollowersCount + 1 : Math.max(0, localFollowersCount - 1);
-    setLocalFollowersCount(updatedCount);
-
-    if (user.uid) {
-      try {
-        await updateDoc(doc(db, 'users', user.uid), {
-          followers: updatedCount,
-        });
-      } catch (err) {
-        console.warn('Failed to update followers in Firestore:', err);
-      }
-    }
+    setLocalFollowersCount((count) => Math.max(0, count + (nextFollowing ? 1 : -1)));
+    onToggleFollowUser(user as UserProfile, nextFollowing);
   };
 
   const handleStartChat = () => {
