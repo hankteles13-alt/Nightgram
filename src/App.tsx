@@ -1498,17 +1498,14 @@ export default function App() {
             type="button"
             onClick={() => setActiveTab('explore')}
             className="w-full flex items-center justify-between px-3 py-1.5 sm:py-2 rounded-xl bg-[#12121a]/90 hover:bg-[#181826] border border-zinc-800 hover:border-cyan-500/50 text-zinc-400 hover:text-zinc-200 transition shadow-inner group cursor-pointer"
-            title="Explore people and photos (Cmd+K)"
+            title="Explore"
           >
             <div className="flex items-center space-x-2 truncate min-w-0">
               <Search className="w-3.5 h-3.5 text-cyan-400 group-hover:text-cyan-300 flex-shrink-0" />
               <span className="text-xs truncate font-sans text-zinc-400 group-hover:text-zinc-200">
-                Explore <span className="text-cyan-400 font-mono font-semibold">@username</span>, people and photos...
+                Explore
               </span>
             </div>
-            <span className="hidden sm:inline-block text-[10px] font-mono px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-400 border border-zinc-700">
-              ⌘K
-            </span>
           </button>
         </div>
 
