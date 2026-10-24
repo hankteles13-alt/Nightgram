@@ -15,7 +15,6 @@ import {
   Calendar,
   ExternalLink
 } from 'lucide-react';
-import { } from '../lib/supabaseFirestore';
 
 interface UserProfileModalProps {
   user: UserProfile | { uid?: string; username: string; displayName?: string; avatar?: string; bio?: string; followers?: number; following?: number; stars?: number } | null;
