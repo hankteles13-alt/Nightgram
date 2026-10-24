@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { motion } from 'motion/react';
-import { Search, Users, UserPlus, UserCheck, Image as ImageIcon, Sparkles } from 'lucide-react';
+import { Search, Users, UserPlus, UserCheck, Image as ImageIcon } from 'lucide-react';
 import { Post, UserProfile } from '../types';
 import { collection, getDocs, db } from '../lib/supabaseFirestore';
 
@@ -69,17 +69,15 @@ export default function ExploreSection({ currentUser, posts, onOpenUserProfile, 
   return (
     <div className="w-full max-w-5xl mx-auto px-3 sm:px-6 py-5 space-y-7 overflow-y-auto">
       <header className="space-y-2">
-        <div className="flex items-center gap-2 text-cyan-300 text-xs uppercase tracking-[0.25em] font-bold">
-          <Sparkles className="w-4 h-4" /> Discover Nightgram
-        </div>
-        <h1 className="text-2xl sm:text-3xl font-black text-white">Explore your next connection.</h1>
-        <p className="text-sm text-zinc-400">Find creators and discover photo moments from the community.</p>
+        <div className="text-sm font-semibold text-violet-300">Discover people</div>
+        <h1 className="text-2xl sm:text-3xl font-black text-white">Find your people.</h1>
+        <p className="text-sm text-zinc-400">See what people are sharing on Nightgram.</p>
         <div className="relative pt-2">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-cyan-400" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-violet-300" />
           <input value={search} onChange={(event) => setSearch(event.target.value)}
             placeholder="Search people by @username, name, or bio"
             aria-label="Search people"
-            className="w-full bg-[#101019] border border-zinc-800 focus:border-cyan-500 rounded-xl py-3 pl-10 pr-4 text-sm text-white placeholder:text-zinc-600 outline-none" />
+            className="w-full bg-[#101019] border border-zinc-800 focus:border-violet-500 rounded-xl py-3 pl-10 pr-4 text-sm text-white placeholder:text-zinc-600 outline-none" />
         </div>
       </header>
 
@@ -100,16 +98,16 @@ export default function ExploreSection({ currentUser, posts, onOpenUserProfile, 
                 <motion.article layout key={user.uid} className="flex items-center gap-3 rounded-2xl border border-zinc-800 bg-[#0c0c14] p-3 sm:p-4">
                   <button onClick={() => onOpenUserProfile(user)} className="shrink-0" aria-label={`Open @${user.username} profile`}>
                     <img src={user.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150'} alt=""
-                      className="w-14 h-14 rounded-full object-cover border border-cyan-500/40" referrerPolicy="no-referrer" />
+                      className="w-14 h-14 rounded-full object-cover border border-zinc-700" referrerPolicy="no-referrer" />
                   </button>
                   <button onClick={() => onOpenUserProfile(user)} className="min-w-0 flex-1 text-left">
                     <div className="font-bold text-white truncate">{user.displayName}</div>
-                    <div className="text-xs text-cyan-300 truncate">@{user.username}</div>
+                    <div className="text-xs text-violet-300 truncate">@{user.username}</div>
                     <p className="text-xs text-zinc-500 truncate mt-1">{user.bio || 'Sharing moments on Nightgram.'}</p>
                     <p className="text-[11px] text-zinc-600 mt-1">{user.followers || 0} followers</p>
                   </button>
                   <button onClick={() => onToggleFollow(user, !isFollowing)}
-                    className={`shrink-0 rounded-xl px-3 py-2 text-xs font-bold flex items-center gap-1.5 transition ${isFollowing ? 'border border-zinc-700 bg-zinc-900 text-zinc-300' : 'bg-cyan-400 text-zinc-950 hover:bg-cyan-300'}`}
+                    className={`shrink-0 rounded-xl px-3 py-2 text-xs font-bold flex items-center gap-1.5 transition ${isFollowing ? 'border border-zinc-700 bg-zinc-900 text-zinc-300' : 'bg-violet-600 text-white hover:bg-violet-500'}`}
                     aria-label={`${isFollowing ? 'Unfollow' : 'Follow'} @${user.username}`}>
                     {isFollowing ? <UserCheck className="w-3.5 h-3.5" /> : <UserPlus className="w-3.5 h-3.5" />}
                     {isFollowing ? 'Following' : 'Follow'}
