@@ -63,10 +63,10 @@ export default function InstagramFeedSection({
     <section className="mx-auto w-full max-w-2xl space-y-5 pb-8" aria-label="Photo feed">
       <div className="sticky top-0 z-20 -mx-2 flex items-center justify-between border-b border-white/10 bg-[#07070d]/95 px-4 py-3 backdrop-blur-xl sm:rounded-t-2xl">
         <div>
-          <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-fuchsia-300">Your world, in moments</p>
-          <h2 className="mt-0.5 text-xl font-black tracking-tight text-white">Nightgram <span className="text-fuchsia-400">Feed</span></h2>
+          <p className="text-xs font-medium text-zinc-400">From your community</p>
+          <h2 className="mt-0.5 text-xl font-bold tracking-tight text-white">Nightgram Feed</h2>
         </div>
-        <div className="rounded-full border border-fuchsia-400/25 bg-fuchsia-400/10 px-3 py-1.5 text-[11px] font-semibold text-fuchsia-200">
+        <div className="rounded-full border border-zinc-700 bg-zinc-900 px-3 py-1.5 text-[11px] font-medium text-zinc-300">
           Photos & stories
         </div>
       </div>
@@ -75,7 +75,7 @@ export default function InstagramFeedSection({
 
       {photoPosts.length === 0 ? (
         <div className="mx-2 rounded-2xl border border-white/10 bg-white/[0.03] px-6 py-12 text-center">
-          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-fuchsia-500/15 text-fuchsia-300"><Heart className="h-6 w-6" /></div>
+          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-violet-600/15 text-violet-300"><Heart className="h-6 w-6" /></div>
           <h3 className="text-lg font-bold text-white">Your feed starts here</h3>
           <p className="mx-auto mt-2 max-w-sm text-sm leading-6 text-zinc-400">Share a photo, a memory, or a moment from your day. Posts from the Nightgram community will appear here.</p>
         </div>
