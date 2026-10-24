@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { ArrowLeft, Clock3, LoaderCircle, Pause, Play, Volume2, VolumeX } from 'lucide-react';
+import { ArrowLeft, Clock3, LoaderCircle, Pause, Play, Plus, Volume2, VolumeX } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 
 type MomentItem = {
@@ -14,7 +14,7 @@ type MomentItem = {
   signedUrl: string;
 };
 
-type Props = { onClose: () => void; currentUserId?: string };
+type Props = { onClose: () => void; onAddMoment: () => void; currentUserId?: string };
 
 function expiryLabel(expiresAt: string) {
   const ms = new Date(expiresAt).getTime() - Date.now();
@@ -24,7 +24,7 @@ function expiryLabel(expiresAt: string) {
   return hours > 0 ? `Disappears in ${hours}h ${minutes}m` : `Disappears in ${minutes}m`;
 }
 
-export default function MomentsVerticalFeed({ onClose, currentUserId }: Props) {
+export default function MomentsVerticalFeed({ onClose, onAddMoment, currentUserId }: Props) {
   const [moments, setMoments] = useState<MomentItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -101,6 +101,7 @@ export default function MomentsVerticalFeed({ onClose, currentUserId }: Props) {
   return (
     <div className="fixed inset-0 z-[120] bg-[#05060a] text-white" aria-label="Full-screen Moments feed">
       <button type="button" onClick={onClose} aria-label="Close Moments feed" className="absolute left-4 top-4 z-20 grid h-11 w-11 place-items-center rounded-full border border-white/20 bg-black/50 backdrop-blur"><ArrowLeft className="h-5 w-5" /></button>
+      <button type="button" onClick={onAddMoment} aria-label="Add a Moment" title="Add a Moment" className="absolute right-4 top-4 z-30 grid h-12 w-12 place-items-center rounded-full bg-gradient-to-br from-cyan-400 to-violet-600 text-white shadow-lg shadow-cyan-950/40 ring-2 ring-white/20 transition hover:scale-105"><Plus className="h-7 w-7" /></button>
       {loading ? (
         <div className="grid h-full place-items-center text-zinc-300"><div className="flex items-center gap-2"><LoaderCircle className="h-5 w-5 animate-spin" /> Loading Moments…</div></div>
       ) : error ? (
