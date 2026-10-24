@@ -28,6 +28,9 @@ export default function AuthScreen({ onAuthSuccess, pendingTwoFactorUser, onSign
   const [isSignUp, setIsSignUp] = useState(false);
   const [email, setEmail] = useState(pendingTwoFactorUser?.email || '');
   const [password, setPassword] = useState('');
+  const [fullName, setFullName] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [phone, setPhone] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -153,12 +156,12 @@ export default function AuthScreen({ onAuthSuccess, pendingTwoFactorUser, onSign
               <span className="text-2xl font-bold tracking-tight">Nightgram</span>
             </div>
             <div className="max-w-xl py-10 lg:py-16">
-              <h2 className="text-4xl font-bold leading-tight tracking-tight sm:text-5xl lg:text-6xl">Your people.<br />Your moments.</h2>
-              <p className="mt-6 max-w-lg text-base leading-7 text-slate-300 sm:text-lg">Share photos, catch up with friends, and keep the moments that matter.</p>
+              <h2 className="text-4xl font-bold leading-tight tracking-tight sm:text-5xl lg:text-6xl">{isSignUp ? <>Join the conversation.</> : <>Good to see you<br />again.</>}</h2>
+              <p className="mt-6 max-w-lg text-base leading-7 text-slate-300 sm:text-lg">{isSignUp ? "Create your account and become part of a community sharing ideas, stories, and moments every day." : "Sign in to catch up with friends and the moments you care about."}</p>
               <div className="mt-10 grid gap-5 sm:grid-cols-3 lg:grid-cols-1 lg:gap-6">
-                <div className="flex items-center gap-4"><span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-white/10"><Smartphone size={22}/></span><span className="font-medium">Stay connected</span></div>
-                <div className="flex items-center gap-4"><span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-white/10"><Mail size={22}/></span><span className="font-medium">Share your moments</span></div>
-                <div className="flex items-center gap-4"><span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-white/10"><ShieldCheck size={22}/></span><span className="font-medium">Your privacy matters</span></div>
+                <div className="flex items-center gap-4"><span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-white/10"><Smartphone size={22}/></span><span className="font-medium">{isSignUp ? "Real-time sharing" : "Stay connected"}</span></div>
+                <div className="flex items-center gap-4"><span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-white/10"><Mail size={22}/></span><span className="font-medium">{isSignUp ? "Global community" : "Share your moments"}</span></div>
+                <div className="flex items-center gap-4"><span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-white/10"><ShieldCheck size={22}/></span><span className="font-medium">{isSignUp ? "Secure & private" : "Your privacy matters"}</span></div>
               </div>
             </div>
             <p className="hidden text-sm text-slate-500 lg:block">A place for the moments worth keeping.</p>
@@ -183,10 +186,13 @@ export default function AuthScreen({ onAuthSuccess, pendingTwoFactorUser, onSign
                 </div>
               ) : (
                 <div className="mt-6 space-y-5">
-                  <label className="block text-sm font-medium text-slate-200">Email address<input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="you@example.com" autoComplete="email" className="mt-2 w-full rounded-xl border border-slate-700 bg-[#111118] px-4 py-4 text-white outline-none transition placeholder:text-slate-500 focus:border-violet-500" /></label>
-                  <label className="block text-sm font-medium text-slate-200">Password<input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="Enter your password" autoComplete={isSignUp ? 'new-password' : 'current-password'} className="mt-2 w-full rounded-xl border border-slate-700 bg-[#111118] px-4 py-4 text-white outline-none transition placeholder:text-slate-500 focus:border-violet-500" /></label>
+                  {isSignUp && <label className="block text-sm font-medium text-slate-200">Full name<input type="text" value={fullName} onChange={e => setFullName(e.target.value)} placeholder="Your full name" autoComplete="name" className="mt-2 w-full rounded-xl border border-slate-700 bg-[#111118] px-4 py-3.5 text-white outline-none transition placeholder:text-slate-500 focus:border-violet-500" /></label>}
+                  <label className="block text-sm font-medium text-slate-200">Email address<input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="you@example.com" autoComplete="email" className="mt-2 w-full rounded-xl border border-slate-700 bg-[#111118] px-4 py-3.5 text-white outline-none transition placeholder:text-slate-500 focus:border-violet-500" /></label>
+                  <label className="block text-sm font-medium text-slate-200">Password<input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="Enter your password" autoComplete={isSignUp ? 'new-password' : 'current-password'} className="mt-2 w-full rounded-xl border border-slate-700 bg-[#111118] px-4 py-3.5 text-white outline-none transition placeholder:text-slate-500 focus:border-violet-500" /></label>
+                  {isSignUp && <label className="block text-sm font-medium text-slate-200">Confirm password<input type="password" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} placeholder="Re-enter password" autoComplete="new-password" className="mt-2 w-full rounded-xl border border-slate-700 bg-[#111118] px-4 py-3.5 text-white outline-none transition placeholder:text-slate-500 focus:border-violet-500" /></label>}
                   {!isSignUp && <div className="-mt-2 flex justify-end"><button type="button" onClick={handlePasswordReset} className="text-sm font-medium text-violet-400 hover:text-violet-300">Forgot password?</button></div>}
                   {error && <p role="alert" className="text-sm text-red-400">{error}</p>}
+                  {isSignUp && <label className="flex items-start gap-3 text-sm text-slate-400"><input type="checkbox" checked={acceptedTerms} onChange={e => setAcceptedTerms(e.target.checked)} className="mt-1 h-4 w-4 accent-violet-600" /><span>I agree to the <a href="#terms" className="font-semibold text-violet-400 hover:text-violet-300">Terms</a> &amp; <a href="#privacy" className="font-semibold text-violet-400 hover:text-violet-300">Privacy Policy</a></span></label>}
                   {showSignUpSuggest && <button onClick={() => setIsSignUp(true)} className="text-sm text-slate-300 underline">Create an account instead</button>}
                   <button disabled={loading} onClick={handleEmailAuth} className="w-full rounded-xl bg-violet-600 py-4 font-semibold transition hover:bg-violet-500 disabled:opacity-50">{loading ? (isSignUp ? 'Creating account…' : 'Signing in…') : (isSignUp ? 'Create account' : 'Sign In')}</button>
                   <div className="flex items-center gap-4 py-1 text-sm text-slate-500"><span className="h-px flex-1 bg-slate-700"/><span>or</span><span className="h-px flex-1 bg-slate-700"/></div>
