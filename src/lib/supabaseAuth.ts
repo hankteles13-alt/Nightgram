@@ -60,9 +60,9 @@ export const signOut = async (_auth?: any) => {
   if (error) throw error;
 };
 
-export const createUserWithEmailAndPassword = async (_auth: any, email: string, pass: string): Promise<{ user: AppUser }> => {
+export const createUserWithEmailAndPassword = async (_auth: any, email: string, pass: string, displayName?: string): Promise<{ user: AppUser }> => {
   const cleanEmail = email.trim().toLowerCase();
-  const { data, error } = await supabase.auth.signUp({ email: cleanEmail, password: pass, options: { data: { displayName: cleanEmail.split('@')[0] } } });
+  const { data, error } = await supabase.auth.signUp({ email: cleanEmail, password: pass, options: { data: { displayName: displayName?.trim() || cleanEmail.split('@')[0] } } });
   if (error) throw error;
   if (!data.user) throw new Error('Supabase could not create the account.');
   if (!data.session) throw new Error('Account created. Please confirm your email, then sign in again.');
