@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { ArrowLeft, ExternalLink, LogIn, Mail, Moon, ShieldCheck, Smartphone } from 'lucide-react';
-import { auth, createUserWithEmailAndPassword, getRedirectResult, sendPhoneOtp, signInWithEmailAndPassword, signInWithPopup, signInWithRedirect, verifyPhoneOtp } from '../lib/supabaseAuth';
+import { auth, createUserWithEmailAndPassword, getRedirectResult, sendPhoneOtp, signInWithEmailAndPassword, signInWithPopup, signInWithRedirect, verifyPhoneOtp, sendPasswordResetEmail } from '../lib/supabaseAuth';
 import { db, doc, getDoc, setDoc } from '../lib/supabaseFirestore';
 import { sendVerificationCodeToEmail, verifyVerificationCode, getWebmailUrl } from '../lib/emailService';
 
@@ -115,6 +115,15 @@ export default function AuthScreen({ onAuthSuccess, pendingTwoFactorUser, onSign
     finally { setLoading(false); }
   };
 
+  const handlePasswordReset = async () => {
+    setError('');
+    if (!email.trim()) { setError('Enter your email address first, then choose Forgot password?'); return; }
+    setLoading(true);
+    try { await sendPasswordResetEmail(email); setError('Password reset email sent. Check your inbox.'); }
+    catch (e: any) { setError(e?.message || 'Could not send the password reset email.'); }
+    finally { setLoading(false); }
+  };
+
   const handleGoogle = async () => {
     setError(''); setPopupBlocked(false); setLoading(true);
     try { await signInWithPopup(); }
@@ -176,7 +185,7 @@ export default function AuthScreen({ onAuthSuccess, pendingTwoFactorUser, onSign
                 <div className="mt-6 space-y-5">
                   <label className="block text-sm font-medium text-slate-200">Email address<input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="you@example.com" autoComplete="email" className="mt-2 w-full rounded-xl border border-slate-700 bg-[#111118] px-4 py-4 text-white outline-none transition placeholder:text-slate-500 focus:border-violet-500" /></label>
                   <label className="block text-sm font-medium text-slate-200">Password<input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="Enter your password" autoComplete={isSignUp ? 'new-password' : 'current-password'} className="mt-2 w-full rounded-xl border border-slate-700 bg-[#111118] px-4 py-4 text-white outline-none transition placeholder:text-slate-500 focus:border-violet-500" /></label>
-                  {!isSignUp && <div className="-mt-2 flex justify-end"><button type="button" onClick={() => setError('To reset your password, use the password recovery option provided by your account administrator or contact Nightgram support.')} className="text-sm font-medium text-violet-400 hover:text-violet-300">Forgot password?</button></div>}
+                  {!isSignUp && <div className="-mt-2 flex justify-end"><button type="button" onClick={handlePasswordReset} className="text-sm font-medium text-violet-400 hover:text-violet-300">Forgot password?</button></div>}
                   {error && <p role="alert" className="text-sm text-red-400">{error}</p>}
                   {showSignUpSuggest && <button onClick={() => setIsSignUp(true)} className="text-sm text-slate-300 underline">Create an account instead</button>}
                   <button disabled={loading} onClick={handleEmailAuth} className="w-full rounded-xl bg-violet-600 py-4 font-semibold transition hover:bg-violet-500 disabled:opacity-50">{loading ? (isSignUp ? 'Creating account…' : 'Signing in…') : (isSignUp ? 'Create account' : 'Sign In')}</button>
