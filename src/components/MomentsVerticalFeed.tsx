@@ -161,7 +161,7 @@ export default function MomentsVerticalFeed({ onClose, onAddMoment, currentUserI
   };
 
   return (
-    <div className="relative isolate h-full min-h-0 w-full flex-1 overflow-hidden bg-[#05060a] text-white" aria-label="Moments feed">
+    <div className="relative isolate h-full min-h-0 w-full flex-1 overflow-hidden bg-gradient-to-br from-violet-950 via-slate-950 to-cyan-950 text-white" aria-label="Moments feed">
       <button type="button" onClick={onClose} aria-label="Close Moments feed" className="absolute left-3 top-3 z-20 grid h-11 w-11 place-items-center rounded-full border border-white/20 bg-black/50 backdrop-blur"><ArrowLeft className="h-5 w-5" /></button>
       <button type="button" onClick={onAddMoment} aria-label="Add a Moment" title="Add a Moment" className="absolute right-3 top-3 z-30 grid h-12 w-12 place-items-center rounded-full bg-gradient-to-br from-cyan-400 to-violet-600 text-white shadow-lg shadow-cyan-950/40 ring-2 ring-white/20 transition hover:scale-105"><Plus className="h-7 w-7" /></button>
       {loading ? (
@@ -173,7 +173,7 @@ export default function MomentsVerticalFeed({ onClose, onAddMoment, currentUserI
       ) : (
         <div ref={feedRef} tabIndex={0} onKeyDown={e => { if (e.key === 'ArrowDown' || e.key === 'PageDown') { e.preventDefault(); scrollBySlide(1); } if (e.key === 'ArrowUp' || e.key === 'PageUp') { e.preventDefault(); scrollBySlide(-1); } }} className="h-full min-h-0 overflow-y-auto snap-y snap-mandatory overscroll-contain [scrollbar-width:none]">
           {moments.map(moment => (
-            <section key={moment.id} className="ngm-slide relative flex h-full min-h-full snap-start snap-always items-center justify-center overflow-hidden bg-[#05060a]">
+            <section key={moment.id} className="ngm-slide relative flex h-full min-h-full snap-start snap-always items-center justify-center overflow-hidden bg-gradient-to-br from-violet-950 via-slate-950 to-cyan-950">
               {moment.media_type === 'video' ? (
                 <video ref={node => { if (node) videoRefs.current.set(moment.id, node); else videoRefs.current.delete(moment.id); }} src={moment.signedUrl} playsInline loop muted={muted} preload="metadata" onClick={() => togglePause(moment.id)} className="absolute inset-0 h-full w-full object-contain bg-black" />
               ) : <img src={moment.signedUrl} alt={moment.caption || 'Nightgram Moment'} loading="lazy" className="absolute inset-0 h-full w-full object-contain bg-black" />}
