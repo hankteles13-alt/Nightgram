@@ -156,7 +156,7 @@ export default function AuthScreen({ onAuthSuccess, pendingTwoFactorUser, onSign
           <section className="relative flex min-h-[300px] flex-col justify-between overflow-hidden bg-[#10132f] px-7 py-8 sm:px-12 sm:py-10 lg:min-h-0 lg:px-12 lg:py-10 xl:px-16 xl:py-12">
             <div className="flex items-center gap-3">
               <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-violet-600 text-white"><Moon size={27} fill="currentColor" /></div>
-              <span className="text-2xl font-bold tracking-tight">Nightgram</span>
+              <span className="text-2xl font-bold tracking-tight text-blue-400">Nightgram</span>
             </div>
             <div className="max-w-xl py-10 lg:py-16">
               <h2 className="text-4xl font-bold leading-tight tracking-tight sm:text-5xl lg:text-6xl">{isSignUp ? <>Join the conversation.</> : <>Good to see you<br />again.</>}</h2>
@@ -172,7 +172,7 @@ export default function AuthScreen({ onAuthSuccess, pendingTwoFactorUser, onSign
 
           <section className="flex items-center justify-center bg-[#09090d] px-5 py-10 sm:px-10 lg:min-h-0 lg:overflow-y-auto lg:px-10 lg:py-8 xl:px-14">
             <div className="w-full max-w-[440px] py-2">
-              <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">{method === 'phone' ? 'Sign in with your phone' : isSignUp ? 'Create your account' : 'Welcome back'}</h1>
+              <h1 className="text-3xl font-bold tracking-tight text-blue-400 sm:text-4xl">{method === 'phone' ? 'Sign in with your phone' : isSignUp ? 'Create your account' : 'Welcome back'}</h1>
               <p className="mt-3 text-base text-slate-400 sm:text-lg">{method === 'phone' ? 'We will send you a verification code.' : isSignUp ? 'Join Nightgram and stay close to your people.' : 'Sign in to continue to Nightgram'}</p>
 
               <div className="mt-8 grid grid-cols-2 gap-2 rounded-xl border border-white/10 bg-white/[0.03] p-1">
@@ -199,7 +199,7 @@ export default function AuthScreen({ onAuthSuccess, pendingTwoFactorUser, onSign
                   {showSignUpSuggest && <button onClick={() => setIsSignUp(true)} className="text-sm text-slate-300 underline">Create an account instead</button>}
                   <button disabled={loading} onClick={handleEmailAuth} className="w-full rounded-xl bg-violet-600 py-4 font-semibold transition hover:bg-violet-500 disabled:opacity-50">{loading ? (isSignUp ? 'Creating account…' : 'Signing in…') : (isSignUp ? 'Create account' : 'Sign In')}</button>
                   <div className="flex items-center gap-4 py-1 text-sm text-slate-500"><span className="h-px flex-1 bg-slate-700"/><span>or</span><span className="h-px flex-1 bg-slate-700"/></div>
-                  <button disabled={loading} onClick={handleGoogle} className="flex w-full items-center justify-center gap-3 rounded-xl border border-slate-600 bg-transparent py-4 font-semibold transition hover:bg-white/[0.04] disabled:opacity-50"><span className="text-xl font-bold" aria-hidden="true"><span className="text-[#4285F4]">G</span></span>Continue with Google</button>
+                  <button disabled={loading} onClick={handleGoogle} className="flex w-full items-center justify-center gap-3 rounded-xl border border-slate-600 bg-transparent py-4 font-semibold transition hover:bg-white/[0.04] disabled:opacity-50"><span className="text-xl font-bold" aria-hidden="true"><span className="text-[#4285F4]">G</span></span><span className="text-blue-400">Continue with Google</span></button>
                   {popupBlocked && <p className="text-center text-xs text-slate-500">If a popup is blocked, Google sign-in will continue in this window.</p>}
                   <p className="pt-2 text-center text-sm text-slate-400">{isSignUp ? 'Already have an account?' : 'New to Nightgram?'} <button onClick={() => { setIsSignUp(v => !v); setError(''); setShowSignUpSuggest(false); }} className="font-semibold text-violet-400 hover:text-violet-300">{isSignUp ? 'Sign in' : 'Create account'}</button></p>
                 </div>
