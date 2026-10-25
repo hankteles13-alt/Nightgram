@@ -45,10 +45,22 @@ export default function MomentsVerticalFeed({ onClose, onAddMoment, currentUserI
     const load = async () => {
       setLoading(true);
       setError('');
+      const { data: authData, error: authError } = await supabase.auth.getUser();
+      const authenticatedUserId = authData.user?.id || '';
+      if (authError || !authenticatedUserId) {
+        if (!cancelled) {
+          setMoments([]);
+          setError('Please sign in to view Moments.');
+          setLoading(false);
+        }
+        return;
+      }
       const { data, error: queryError } = await supabase
         .from('nightgram_moments')
         .select('id,user_id,storage_path,media_type,caption,visibility,created_at,expires_at')
         .gt('expires_at', new Date().toISOString())
+        // Show public Moments and private Moments owned by the signed-in user.
+        .or(`visibility.eq.public,user_id.eq.${authenticatedUserId}`)
         .order('created_at', { ascending: false })
         .limit(60);
       if (queryError) {
