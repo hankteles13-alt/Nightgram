@@ -16,59 +16,17 @@
   scrollbar-width: none;
 }
 
-
-/* Nightgram solid dark theme */
-:root {
-  color-scheme: dark;
-  --nightgram-bg: #08080b;
-  --nightgram-surface: #111116;
-  --nightgram-raised: #191920;
-  --nightgram-border: #2d2938;
-  --nightgram-text: #f8f7fc;
-  --nightgram-muted: #aaa5b8;
-  --nightgram-purple: #7c3aed;
-}
-
-html,
-body,
-#root {
-  min-height: 100%;
-  background-color: var(--nightgram-bg);
-}
-
-body {
-  color: var(--nightgram-text);
-  background-image: none !important;
-}
-
-/* Replace gradient backgrounds with a single solid colour. */
-[class*="bg-gradient-to-"],
-[class*="bg-gradient"] {
-  background-image: none !important;
-  background-color: var(--nightgram-surface) !important;
-}
-
-/* Keep gradient-style purple actions as solid purple buttons/highlights. */
-[class*="bg-gradient-to-"][class*="from-purple-"],
-[class*="bg-gradient-to-"][class*="from-violet-"],
-[class*="bg-gradient-to-"][class*="from-fuchsia-"],
-[class*="bg-gradient"][class*="from-purple-"],
-[class*="bg-gradient"][class*="from-violet-"],
-[class*="bg-gradient"][class*="from-fuchsia-"] {
-  background-color: var(--nightgram-purple) !important;
-}
-
-/* Consistent solid selection and focus accents. */
+/* Keep selection and keyboard focus clear. */
 ::selection {
   color: #ffffff;
-  background-color: var(--nightgram-purple);
+  background-color: #7c3aed;
 }
 
 :focus-visible {
   outline-color: #a78bfa;
 }
 
-/* Keep the visual language calm and social, not neon or AI-themed. */
+/* Keep visual effects subtle without overriding component colours or gradients. */
 [class*="shadow-[0_0_"] {
   box-shadow: none !important;
 }
