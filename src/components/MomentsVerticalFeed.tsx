@@ -188,7 +188,7 @@ export default function MomentsVerticalFeed({ onClose, onAddMoment, currentUserI
             <section key={moment.id} className="ngm-slide relative flex h-full min-h-full snap-start snap-always items-center justify-center overflow-hidden bg-gradient-to-br from-violet-950 via-slate-950 to-cyan-950">
               {moment.media_type === 'video' ? (
                 <video ref={node => { if (node) videoRefs.current.set(moment.id, node); else videoRefs.current.delete(moment.id); }} src={moment.signedUrl} playsInline loop muted={muted} preload="metadata" onClick={() => togglePause(moment.id)} className="absolute inset-0 h-full w-full object-contain" />
-              ) : <img src={moment.signedUrl} alt={moment.caption || 'Nightgram Moment'} loading="lazy" className="absolute inset-0 h-full w-full object-contain bg-black" />}
+              ) : <img src={moment.signedUrl} alt={moment.caption || 'Nightgram Moment'} loading="lazy" className="absolute inset-0 h-full w-full object-contain" />}
               <div className="pointer-events-none absolute inset-x-0 bottom-0 h-[45%] bg-gradient-to-t from-black/80 to-transparent" />
               <div className="absolute bottom-3 left-3 right-16 z-10 space-y-1.5 pb-[env(safe-area-inset-bottom)]">
                 <p className="text-sm font-semibold">{moment.user_id === currentUserId ? 'Your Moment' : 'Nightgram Moment'}</p>
