@@ -177,9 +177,9 @@ export default function MomentsVerticalFeed({ onClose, onAddMoment, currentUserI
       <button type="button" onClick={onClose} aria-label="Close Moments feed" className="absolute left-3 top-3 z-20 grid h-11 w-11 place-items-center rounded-full border border-white/20 bg-black/50 backdrop-blur"><ArrowLeft className="h-5 w-5" /></button>
       <button type="button" onClick={onAddMoment} aria-label="Add a Moment" title="Add a Moment" className="absolute right-3 top-3 z-30 grid h-12 w-12 place-items-center rounded-full bg-gradient-to-br from-cyan-400 to-violet-600 text-white shadow-lg shadow-cyan-950/40 ring-2 ring-white/20 transition hover:scale-105"><Plus className="h-7 w-7" /></button>
       {loading ? (
-        <div className="grid h-full min-h-0 place-items-center text-zinc-300"><div className="flex items-center gap-2"><LoaderCircle className="h-5 w-5 animate-spin" /> Loading Moments…</div></div>
+        <div role="status" aria-live="polite" className="grid h-full min-h-0 place-items-center text-zinc-300"><div className="flex items-center gap-2"><LoaderCircle className="h-5 w-5 animate-spin" /> Loading Moments…</div></div>
       ) : error ? (
-        <div className="grid h-full min-h-0 place-items-center px-6 text-center"><div><p className="text-lg font-semibold">{error}</p><button onClick={onClose} className="mt-4 rounded-xl border border-zinc-700 px-4 py-2">Back to Moments</button></div></div>
+        <div role="alert" className="grid h-full min-h-0 place-items-center px-6 text-center"><div><p className="text-lg font-semibold">{error}</p><button onClick={onClose} className="mt-4 rounded-xl border border-zinc-700 px-4 py-2">Back to Moments</button></div></div>
       ) : moments.length === 0 ? (
         <div className="grid h-full place-items-center px-6 text-center"><div><p className="text-xl font-bold">No active Moments yet</p><p className="mt-2 text-sm text-zinc-400">Share a photo or video to start the feed.</p><button onClick={onClose} className="mt-5 rounded-xl bg-cyan-500 px-4 py-2 font-semibold text-black">Back to Moments</button></div></div>
       ) : (
