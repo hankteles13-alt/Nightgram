@@ -114,7 +114,7 @@ export default function StoriesSection({ stories, currentUser, onOpenCreateStory
     (s) => currentUser && ((s.userId && s.userId === currentUser.uid) || (s.username && s.username === currentUser.username))
   );
   const otherStories = stories.filter(
-    (s) => !currentUser || ((!s.userId || s.userId !== currentUser.uid) && (!s.username && s.username !== currentUser.username))
+    (s) => !currentUser || ((s.userId ? s.userId !== currentUser.uid : true) && s.username !== currentUser.username)
   );
   const hasMyStories = myStories.length > 0;
 
@@ -144,7 +144,7 @@ export default function StoriesSection({ stories, currentUser, onOpenCreateStory
           <div className="relative">
             <div className={`w-[66px] h-[66px] rounded-full p-[2.5px] transition-all duration-300 group-hover:scale-105 ${
               hasMyStories 
-                ? 'bg-gradient-to-tr from-[#f58529] via-[#dd2a7b] to-[#8134af] shadow-[0_0_12px_rgba(221,42,123,0.35)]' 
+                ? 'bg-gradient-to-tr from-emerald-400 via-green-500 to-teal-400 shadow-[0_0_12px_rgba(34,197,94,0.35)]' 
                 : 'bg-zinc-800 group-hover:bg-zinc-700'
             }`}>
               <div className="w-full h-full rounded-full p-[2px] bg-black">
@@ -188,7 +188,7 @@ export default function StoriesSection({ stories, currentUser, onOpenCreateStory
             >
               <div className="relative">
                 {/* Iconic Instagram Gradient Story Ring (warm pink to purple to orange gradient) */}
-                <div className="w-[66px] h-[66px] rounded-full p-[2.5px] bg-gradient-to-tr from-[#f58529] via-[#dd2a7b] to-[#8134af] transition-all duration-300 group-hover:scale-105 shadow-[0_0_12px_rgba(221,42,123,0.35)]">
+                <div className="w-[66px] h-[66px] rounded-full p-[2.5px] bg-gradient-to-tr from-emerald-400 via-green-500 to-teal-400 transition-all duration-300 group-hover:scale-105 shadow-[0_0_12px_rgba(34,197,94,0.35)]">
                   <div className="w-full h-full rounded-full p-[2px] bg-black">
                     <img
                       src={storyAvatar}
