@@ -1,11 +1,10 @@
 import React from 'react';
 import { motion } from 'motion/react';
-import { Film, Image as ImageIcon, Sparkles, X, Plus, Radio, Music } from 'lucide-react';
+import { Image as ImageIcon, Sparkles, X, Plus } from 'lucide-react';
 
 interface CreatorChoiceSheetProps {
   isOpen: boolean;
   onClose: () => void;
-  onSelectShort: () => void;
   onSelectPost: () => void;
   onSelectStory: () => void;
 }
@@ -13,7 +12,6 @@ interface CreatorChoiceSheetProps {
 export default function CreatorChoiceSheet({
   isOpen,
   onClose,
-  onSelectShort,
   onSelectPost,
   onSelectStory,
 }: CreatorChoiceSheetProps) {
@@ -57,39 +55,6 @@ export default function CreatorChoiceSheet({
 
         {/* 3 Action Cards */}
         <div className="grid grid-cols-1 gap-3 pt-1">
-          {/* 1. Short Video / Reel */}
-          <button
-            type="button"
-            id="create-short-choice-btn"
-            onClick={() => {
-              onClose();
-              onSelectShort();
-            }}
-            className="w-full p-4 rounded-2xl bg-gradient-to-r from-cyan-950/50 via-zinc-900/80 to-purple-950/40 border border-cyan-500/40 hover:border-cyan-400 text-left transition-all hover:scale-[1.02] active:scale-95 shadow-lg group cursor-pointer flex items-center justify-between"
-          >
-            <div className="flex items-center space-x-4">
-              <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-cyan-400 to-purple-600 flex items-center justify-center text-zinc-950 shadow-md group-hover:shadow-[0_0_15px_rgba(6,182,212,0.6)] transition">
-                <Film className="w-6 h-6" />
-              </div>
-              <div>
-                <div className="flex items-center gap-2">
-                  <h4 className="text-sm font-bold text-white group-hover:text-cyan-300 transition">
-                    Short Video / Reel
-                  </h4>
-                  <span className="text-[9px] font-bold uppercase px-2 py-0.5 rounded-full bg-cyan-400 text-zinc-950">
-                    9:16 Vertical
-                  </span>
-                </div>
-                <p className="text-xs text-zinc-400 mt-0.5 line-clamp-1">
-                  Upload clip, record with camera, pick soundtrack & sound code
-                </p>
-              </div>
-            </div>
-            <div className="w-8 h-8 rounded-full bg-zinc-800/80 border border-zinc-700 flex items-center justify-center text-zinc-300 group-hover:bg-cyan-400 group-hover:text-zinc-950 transition">
-              →
-            </div>
-          </button>
-
           {/* 2. Photo / Feed Post */}
           <button
             type="button"
