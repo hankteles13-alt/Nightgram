@@ -97,7 +97,7 @@ export const TEXT_COLORS = [
 interface CreateStoryModalProps {
   currentUser?: UserProfile | null;
   onClose: () => void;
-  onSubmit: (story: { mediaUrl: string; caption: string; mood: string }) => void;
+  onSubmit: (story: { mediaUrl: string; caption: string; mood: string }) => Promise<void> | void;
 }
 
 export default function CreateStoryModal({ currentUser, onClose, onSubmit }: CreateStoryModalProps) {
@@ -371,22 +371,32 @@ export default function CreateStoryModal({ currentUser, onClose, onSubmit }: Cre
 
   const handlePublish = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isPublishing) return;
+    if (!mediaUrl.trim()) {
+      setUploadError('Choose a photo before publishing your story.');
+      return;
+    }
+
     setIsPublishing(true);
+    setUploadError(null);
 
     try {
-      const finalCompositeUrl = await renderCompositeStoryMedia();
-      onSubmit({
-        mediaUrl: finalCompositeUrl,
-        caption: caption || overlayText || 'Late night story 🌌',
-        mood: mood,
+      let finalMediaUrl = mediaUrl;
+      try {
+        finalMediaUrl = await renderCompositeStoryMedia();
+      } catch (renderError) {
+        // If the optional text/filter composition fails, still publish the selected image.
+        console.warn('Story styling could not be applied; publishing the original image.', renderError);
+      }
+
+      await onSubmit({
+        mediaUrl: finalMediaUrl || mediaUrl,
+        caption: caption.trim() || overlayText.trim() || 'Late night story 🌌',
+        mood: mood || 'Urban Neon',
       });
     } catch (err) {
       console.error('Publish story error:', err);
-      onSubmit({
-        mediaUrl: mediaUrl,
-        caption: caption || 'Late night story 🌌',
-        mood: mood,
-      });
+      setUploadError(err instanceof Error ? err.message : 'Failed to publish your story. Please try again.');
     } finally {
       setIsPublishing(false);
     }
