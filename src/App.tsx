@@ -352,13 +352,19 @@ export default function App() {
           });
         });
 
-        fetchedStories.sort((a: any, b: any) => {
+        // WhatsApp-style status expiry: only keep stories created within the last 24 hours.
+        const activeStories = fetchedStories.filter((story) => {
+          const createdAt = story.createdAt ? new Date(story.createdAt).getTime() : 0;
+          return Number.isFinite(createdAt) && createdAt > 0 && Date.now() - createdAt < 24 * 60 * 60 * 1000;
+        });
+
+        activeStories.sort((a: any, b: any) => {
           const timeA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
           const timeB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
           return timeB - timeA;
         });
 
-        setStories(fetchedStories);
+        setStories(activeStories);
       },
       (err) => {
         console.warn('Firestore stories snapshot warning:', err);
