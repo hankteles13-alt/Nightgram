@@ -1535,34 +1535,6 @@ export default function App() {
             </span>
           </button>
 
-          {/* Lofi Radio Stream */}
-          <button
-            id="lofi-toggle-btn"
-            onClick={toggleLofi}
-            className={`flex items-center space-x-1.5 sm:space-x-2 px-2.5 sm:px-3 py-1.5 rounded-xl border text-[11px] font-semibold transition-all cursor-pointer ${
-              isLofiPlaying
-                ? 'bg-cyan-950/20 border-cyan-500/50 text-cyan-300 shadow-[0_0_10px_rgba(6,182,212,0.15)]'
-                : 'bg-[#121218]/40 border-zinc-800/60 text-zinc-400 hover:text-zinc-200 hover:border-zinc-700'
-            }`}
-            title="Midnight Lofi Music"
-          >
-            {isLofiPlaying ? (
-              <>
-                <div className="flex space-x-0.5 items-end h-3" id="audio-bars">
-                  <span className="w-[2px] bg-cyan-400 animate-[bounce_0.8s_infinite_alternate]" style={{ animationDelay: '0ms' }}></span>
-                  <span className="w-[2px] bg-cyan-400 animate-[bounce_0.6s_infinite_alternate]" style={{ animationDelay: '200ms' }}></span>
-                  <span className="w-[2px] bg-cyan-400 animate-[bounce_1s_infinite_alternate]" style={{ animationDelay: '400ms' }}></span>
-                </div>
-                <span className="hidden sm:inline">Chill Chords</span>
-              </>
-            ) : (
-              <>
-                <Play className="w-3 h-3 text-zinc-400 fill-zinc-400" />
-                <span className="hidden sm:inline">Lofi</span>
-              </>
-            )}
-          </button>
-
           {/* Notifications Center Bell */}
           <button
             id="top-header-notifications-btn"
@@ -1837,21 +1809,6 @@ export default function App() {
                 </div>
               )}
 
-              {activeTab === 'shorts' && (
-                <div className="w-full h-full flex-1 flex flex-col min-h-0 overflow-hidden" id="shorts-tab-pane">
-                  <ReelsSection
-                    currentUser={currentUser}
-                    onClose={() => setActiveTab('feed')}
-                    onOpenChatWithUser={handleOpenChatWithUser}
-                    onOpenCreateShort={() => setShowCreateShortModal(true)}
-                    onOpenUserProfile={(user) => setViewingUserProfile(user)}
-                    onFollowCreator={handleFollowCreator}
-                    shorts={shorts}
-                    setShorts={setShorts}
-                  />
-                </div>
-              )}
-
               {activeTab === 'messages' && (
                 <div className="w-full h-full flex-1 flex flex-col min-h-0 overflow-hidden" id="messages-tab-pane">
                   <NightgramChatExperience
@@ -1867,21 +1824,6 @@ export default function App() {
                       setActiveTab('feed');
                     }}
                   />
-                </div>
-              )}
-
-              {activeTab === 'memories' && (
-                <div className="w-full h-full flex-1 overflow-y-auto" id="memories-tab-pane">
-                  <MemoryAfterMidnight currentUser={currentUser} />
-                  <div className="border-t border-zinc-900/80 pt-2">
-                    <LifeChaptersSection currentUser={currentUser} />
-                  </div>
-                </div>
-              )}
-
-              {activeTab === 'moments' && (
-                <div className="w-full h-full flex-1 overflow-y-auto" id="moments-tab-pane">
-                  <NightgramMomentsSection currentUser={currentUser} />
                 </div>
               )}
 
@@ -1932,46 +1874,12 @@ export default function App() {
           <Home className="w-5 h-5" />
           <span className="hidden sm:inline text-xs font-bold tracking-wide font-sans">Feed</span>
         </button>
-<button
-          id="nav-memories-btn"
-          onClick={() => setActiveTab('memories')}
-          className={`flex items-center space-x-1.5 sm:space-x-2 px-2.5 sm:px-3 py-2 rounded-xl transition-all cursor-pointer ${
-            activeTab === 'memories'
-              ? 'text-cyan-300 bg-cyan-950/40 border border-cyan-500/40 shadow-[0_0_12px_rgba(6,182,212,0.2)]'
-              : 'text-zinc-500 hover:text-zinc-300 hover:bg-zinc-900/40'
-          }`}
-          title="Life Chapters and Memories"
-        >
-          <BookOpen className="w-5 h-5" />
-          <span className="hidden sm:inline text-xs font-bold tracking-wide font-sans">Memories</span>
-        </button>
-
-        <button
-          id="nav-moments-btn"
-          onClick={() => setActiveTab('moments')}
-          className={`flex items-center space-x-1.5 sm:space-x-2 px-2.5 sm:px-3 py-2 rounded-xl transition-all cursor-pointer ${
-            activeTab === 'moments'
-              ? 'text-cyan-300 bg-cyan-950/40 border border-cyan-500/40 shadow-[0_0_12px_rgba(6,182,212,0.2)]'
-              : 'text-zinc-500 hover:text-zinc-300 hover:bg-zinc-900/40'
-          }`}
-          title="Nightgram Moments"
-        >
-          <Camera className="w-5 h-5" />
-          <span className="hidden sm:inline text-xs font-bold tracking-wide font-sans">Moments</span>
-        </button>
-
         {/* Floating gradient '+' creator button */}
         <button
           id="nav-create-btn"
-          onClick={() => {
-            if (activeTab === 'shorts') {
-              setShowCreateShortModal(true);
-            } else {
-              setShowCreateChooser(true);
-            }
-          }}
+          onClick={() => setShowCreateChooser(true)}
           className="p-3.5 rounded-full bg-gradient-to-tr from-cyan-400 via-cyan-500 to-purple-500 text-white shadow-[0_0_18px_rgba(6,182,212,0.45)] active:scale-95 transition cursor-pointer -mt-5 border-4 border-[#030305] hover:scale-105"
-          title="Create Short Video or Post"
+          title="Create a post or story"
         >
           <Plus className="w-5 h-5" />
         </button>
@@ -2024,10 +1932,6 @@ export default function App() {
       <CreatorChoiceSheet
         isOpen={showCreateChooser}
         onClose={() => setShowCreateChooser(false)}
-        onSelectShort={() => {
-          setShowCreateChooser(false);
-          setShowCreateShortModal(true);
-        }}
         onSelectPost={() => {
           setShowCreateChooser(false);
           setShowCreateModal(true);
@@ -2040,22 +1944,11 @@ export default function App() {
 
       {/* Create short, post & story modal dialogs */}
       <AnimatePresence>
-        {showCreateShortModal && (
-          <CreateShortModal
-            currentUser={currentUser}
-            onClose={() => setShowCreateShortModal(false)}
-            onSubmit={handleCreateShortSubmit}
-          />
-        )}
         {showCreateModal && (
           <CreatePostModal
             currentUser={currentUser}
             onClose={() => setShowCreateModal(false)}
             onSubmit={handleCreatePostSubmit}
-            onSwitchToShorts={() => {
-              setShowCreateModal(false);
-              setShowCreateShortModal(true);
-            }}
           />
         )}
         {showCreateStoryModal && (
