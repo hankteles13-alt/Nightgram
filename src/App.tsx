@@ -1827,6 +1827,12 @@ export default function App() {
                 </div>
               )}
 
+              {activeTab === 'moments' && (
+                <div className="w-full h-full flex-1 overflow-y-auto" id="moments-tab-pane">
+                  <NightgramMomentsSection currentUser={currentUser} />
+                </div>
+              )}
+
               {activeTab === 'profile' && (
                 <div className="w-full h-full max-w-5xl mx-auto px-3 sm:px-6 lg:px-8 py-5 flex-1 overflow-y-auto" id="profile-tab-pane">
                   <ProfileSection
@@ -1874,6 +1880,20 @@ export default function App() {
           <Home className="w-5 h-5" />
           <span className="hidden sm:inline text-xs font-bold tracking-wide font-sans">Feed</span>
         </button>
+<button
+          id="nav-moments-btn"
+          onClick={() => setActiveTab('moments')}
+          className={`flex items-center space-x-1.5 sm:space-x-2 px-2.5 sm:px-3 py-2 rounded-xl transition-all cursor-pointer ${
+            activeTab === 'moments'
+              ? 'text-cyan-300 bg-cyan-950/40 border border-cyan-500/40 shadow-[0_0_12px_rgba(6,182,212,0.2)]'
+              : 'text-zinc-500 hover:text-zinc-300 hover:bg-zinc-900/40'
+          }`}
+          title="Nightgram Moments"
+        >
+          <Camera className="w-5 h-5" />
+          <span className="hidden sm:inline text-xs font-bold tracking-wide font-sans">Moments</span>
+        </button>
+
         {/* Floating gradient '+' creator button */}
         <button
           id="nav-create-btn"
