@@ -266,15 +266,22 @@ export default function StoriesSection({ stories, currentUser, onOpenCreateStory
                   >
                     {/* Story Media Background filling 9:16 container */}
                     <div className="absolute inset-0 z-0 bg-black">
-                      <img
-                        src={stories[activeStoryIdx].mediaUrl || 'https://images.unsplash.com/photo-1514565131-fce0801e5785?w=800'}
-                        alt="Story Content"
-                        className="w-full h-full object-cover"
-                        referrerPolicy="no-referrer"
-                      />
-                      {/* Atmospheric gradient overlays */}
-                      <div className="absolute inset-x-0 top-0 h-36 bg-gradient-to-b from-black/85 via-black/40 to-transparent pointer-events-none" />
-                      <div className="absolute inset-x-0 bottom-0 h-44 bg-gradient-to-t from-black/95 via-black/60 to-transparent pointer-events-none" />
+                      {stories[activeStoryIdx].mood?.startsWith('text:') ? (
+                        <div className="flex h-full w-full items-center justify-center p-8 text-center" style={{ backgroundColor: stories[activeStoryIdx].mood.slice(5) }}>
+                          <p className="whitespace-pre-wrap break-words text-2xl sm:text-3xl font-bold leading-relaxed text-white">{stories[activeStoryIdx].caption}</p>
+                        </div>
+                      ) : (
+                        <>
+                          <img
+                            src={stories[activeStoryIdx].mediaUrl || 'https://images.unsplash.com/photo-1514565131-fce0801e5785?w=800'}
+                            alt="Story Content"
+                            className="w-full h-full object-cover"
+                            referrerPolicy="no-referrer"
+                          />
+                          <div className="absolute inset-x-0 top-0 h-36 bg-gradient-to-b from-black/85 via-black/40 to-transparent pointer-events-none" />
+                          <div className="absolute inset-x-0 bottom-0 h-44 bg-gradient-to-t from-black/95 via-black/60 to-transparent pointer-events-none" />
+                        </>
+                      )}
                     </div>
 
                     {/* Floating Hearts Reaction Animation */}
@@ -376,7 +383,7 @@ export default function StoriesSection({ stories, currentUser, onOpenCreateStory
                     {/* Bottom Caption & Interactive Reply Bar */}
                     <div className="relative z-10 p-4 space-y-3 w-full" id="story-bottom-panel">
                       {/* Caption */}
-                      {stories[activeStoryIdx].caption && (
+                      {stories[activeStoryIdx].caption && !stories[activeStoryIdx].mood?.startsWith('text:') && (
                         <motion.p
                           key={`story-active-caption-${activeStoryIdx}`}
                           initial={{ opacity: 0, y: 10 }}
