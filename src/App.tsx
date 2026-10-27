@@ -345,7 +345,7 @@ export default function App() {
               data.userAvatar ||
               'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
             userId: data.userId || '',
-            mediaUrl: data.mediaUrl && data.mediaUrl.trim() ? data.mediaUrl : 'https://images.unsplash.com/photo-1514565131-fce0801e5785?w=800',
+            mediaUrl: data.mediaUrl && data.mediaUrl.trim() ? data.mediaUrl : '',
             caption: data.caption || '',
             mood: data.mood || 'Cozy',
             createdAt: data.createdAt || '',
@@ -908,8 +908,9 @@ export default function App() {
         });
       }
 
+      const isTextStory = (newStory.mood || '').startsWith('text:');
       if (!safeMedia || !safeMedia.trim()) {
-        safeMedia = 'https://images.unsplash.com/photo-1514565131-fce0801e5785?w=800';
+        safeMedia = isTextStory ? '' : 'https://images.unsplash.com/photo-1514565131-fce0801e5785?w=800';
       }
 
       let safeAvatar = currentUser.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150';
