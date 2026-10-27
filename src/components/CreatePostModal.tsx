@@ -20,7 +20,6 @@ import {
   Mic,
   MicOff,
   Volume2,
-  Film,
   Loader2,
 } from 'lucide-react';
 
@@ -28,10 +27,9 @@ interface CreatePostModalProps {
   currentUser?: UserProfile | null;
   onClose: () => void;
   onSubmit: (post: Post) => void;
-  onSwitchToShorts?: () => void;
 }
 
-export default function CreatePostModal({ currentUser, onClose, onSubmit, onSwitchToShorts }: CreatePostModalProps) {
+export default function CreatePostModal({ currentUser, onClose, onSubmit }: CreatePostModalProps) {
   const [mediaSourceTab, setMediaSourceTab] = useState<'device' | 'preset' | 'url'>('device');
   const [selectedPreset, setSelectedPreset] = useState<typeof PRESET_SCENES[0] | null>(null);
   const [imageURL, setImageURL] = useState<string>('');
@@ -322,17 +320,6 @@ export default function CreatePostModal({ currentUser, onClose, onSubmit, onSwit
             </div>
           </div>
           <div className="flex items-center space-x-2">
-            {onSwitchToShorts && (
-              <button
-                type="button"
-                onClick={onSwitchToShorts}
-                className="px-3 py-1.5 rounded-xl bg-cyan-950/60 border border-cyan-500/40 text-cyan-300 text-xs font-semibold hover:bg-cyan-900/60 transition cursor-pointer flex items-center gap-1.5"
-                id="switch-to-shorts-from-post-btn"
-              >
-                <Film className="w-3.5 h-3.5" />
-                <span>Create Short Video instead</span>
-              </button>
-            )}
             <button
               id="close-create-modal"
               onClick={onClose}
