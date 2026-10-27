@@ -17,6 +17,36 @@ const wrapDocs = (rows: any[] = []) => ({
   forEach: (cb: (doc: any) => void) => rows.forEach((row) => cb({ id: row.id, data: () => row })),
 });
 
+// The database stores last_message_time as an ISO timestamp (filled in by a trigger when a message is sent).
+// The chat UI shows this value as plain text, so turn it into a friendly local time.
+const formatChatTime = (value: any): string => {
+  if (!value) return '';
+  const text = String(value);
+  const date = new Date(text);
+  if (Number.isNaN(date.getTime()) || !/^\d{4}-\d{2}-\d{2}T/.test(text)) return text;
+  const now = new Date();
+  const sameDay = date.toDateString() === now.toDateString();
+  return sameDay
+    ? date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    : date.toLocaleDateString([], { month: 'short', day: 'numeric' });
+};
+
+const mapConversation = (c: any) => ({
+  id: c.id,
+  participants: Object.keys(c.participant_profiles || {}),
+  participantProfiles: c.participant_profiles || {},
+  lastMessage: c.last_message || '',
+  lastMessageTime: formatChatTime(c.last_message_time),
+  lastSenderId: c.last_sender_id || '',
+  unreadBy: c.unread_by || [],
+  updatedAt: c.updated_at || c.created_at,
+  createdAt: c.created_at,
+  title: c.title || '',
+  circleId: c.circle_id || '',
+  isGroup: !!c.circle_id,
+  disappearAfterSeconds: c.disappear_after_seconds ?? null,
+});
+
 async function getChatId(refId: string) {
   if (isUuid(refId)) return refId;
   const parts = refId.split('_').filter(Boolean);
@@ -69,7 +99,21 @@ async function rowsFor(spec: QuerySpec): Promise<any[]> {
       if (spec.order) q = q.order(spec.order.field === 'createdAt' ? 'created_at' : spec.order.field, { ascending: spec.order.direction === 'asc' });
       const { data, error } = await q;
       if (error) throw error;
-      return (data || []).map((m: any) => ({
+      const messageRows = data || [];
+      // Reactions live in their own table; fetch them for the messages we just loaded.
+      const reactionsByMessage = new Map<string, { emoji: string; userId: string }[]>();
+      if (messageRows.length) {
+        const { data: reactionRows } = await supabase
+          .from('message_reactions')
+          .select('message_id,user_id,emoji')
+          .in('message_id', messageRows.map((m: any) => m.id));
+        (reactionRows || []).forEach((r: any) => {
+          const list = reactionsByMessage.get(r.message_id) || [];
+          list.push({ emoji: r.emoji, userId: r.user_id });
+          reactionsByMessage.set(r.message_id, list);
+        });
+      }
+      return messageRows.map((m: any) => ({
         id: m.id,
         chatId: parentId,
         senderId: m.sender_id,
@@ -77,22 +121,20 @@ async function rowsFor(spec: QuerySpec): Promise<any[]> {
         senderAvatar: '',
         text: m.content || '',
         createdAt: m.created_at,
+        mediaUrl: m.media_url || '',
+        mediaType: m.media_type || '',
+        durationMs: m.duration_ms ?? null,
+        replyToId: m.reply_to_id || '',
+        momentId: m.moment_id || '',
+        expiresAt: m.expires_at || '',
+        readBy: m.read_by || [],
+        reactions: reactionsByMessage.get(m.id) || [],
       }));
     }
 
     const { data, error } = await supabase.rpc('list_my_conversations');
     if (error) throw error;
-    let rows = (data || []).map((c: any) => ({
-      id: c.id,
-      participants: Object.keys(c.participant_profiles || {}),
-      participantProfiles: c.participant_profiles || {},
-      lastMessage: c.last_message || '',
-      lastMessageTime: c.last_message_time || '',
-      lastSenderId: c.last_sender_id || '',
-      unreadBy: c.unread_by || [],
-      updatedAt: c.updated_at || c.created_at,
-      createdAt: c.created_at,
-    }));
+    let rows = (data || []).map(mapConversation);
     for (const f of spec.filters) {
       if (f.field === 'participants' && f.op === 'array-contains') rows = rows.filter((r: any) => r.participants.includes(f.value));
     }
@@ -133,17 +175,7 @@ async function findRef(ref: Ref) {
     if (error) throw error;
     const c = (data || []).find((row: any) => row.id === conversationId);
     if (!c) return null;
-    return {
-      id: c.id,
-      participants: Object.keys(c.participant_profiles || {}),
-      participantProfiles: c.participant_profiles || {},
-      lastMessage: c.last_message || '',
-      lastMessageTime: c.last_message_time || '',
-      lastSenderId: c.last_sender_id || '',
-      unreadBy: c.unread_by || [],
-      updatedAt: c.updated_at || c.created_at,
-      createdAt: c.created_at,
-    };
+    return mapConversation(c);
   }
   if (root === 'users') {
     const { data, error } = await supabase.from('profiles').select('*').eq('id', id).maybeSingle();
@@ -197,14 +229,19 @@ export const addDoc = async (ref: QuerySpec, value: Record<string, any>) => {
       conversation_id: conversationId,
       sender_id: value.senderId,
       content: value.text || '',
+      // Optional extras (photos, voice notes, replies, replies to Moments). Ignored when absent.
+      ...(value.mediaUrl ? { media_url: value.mediaUrl, media_type: value.mediaType, duration_ms: value.durationMs ?? null } : {}),
+      ...(value.replyToId ? { reply_to_id: value.replyToId } : {}),
+      ...(value.momentId ? { moment_id: value.momentId } : {}),
     }).select('id').single();
-    if (error) throw error;
-    await supabase.from('conversations').update({
-      last_message: value.text || '',
-      last_message_time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      last_sender_id: value.senderId,
-      updated_at: new Date().toISOString(),
-    }).eq('id', conversationId);
+    if (error) {
+      // Deliberately vague: the sender is not told whether they were blocked.
+      if ((error as any).code === '42501' || /row-level security|violates/i.test(error.message || '')) {
+        throw new Error('Message could not be sent');
+      }
+      throw error;
+    }
+    // last_message, unread_by and updated_at are kept up to date by a database trigger.
     return { id: data.id, data: () => value };
   }
   const { data, error } = await supabase.from(root).insert(value).select('id').single();
@@ -217,14 +254,15 @@ export const updateDoc = async (ref: Ref, value: Record<string, any>) => {
   if (root === 'chats' && !child) {
     const conversationId = await getChatId(id);
     if (!conversationId) throw new Error('Conversation not found');
-    const patch: any = {};
-    if (value.lastMessage !== undefined) patch.last_message = value.lastMessage;
-    if (value.lastMessageTime !== undefined) patch.last_message_time = value.lastMessageTime;
-    if (value.lastSenderId !== undefined) patch.last_sender_id = value.lastSenderId;
-    if (value.updatedAt !== undefined) patch.updated_at = value.updatedAt;
-    if (value.unreadBy !== undefined) patch.unread_by = value.unreadBy;
-    if (Object.keys(patch).length) {
-      const { error } = await supabase.from('conversations').update(patch).eq('id', conversationId);
+    // lastMessage / lastMessageTime / lastSenderId / updatedAt / unreadBy(add) are maintained by the
+    // database when a message is sent, so those fields are intentionally not written from the client.
+    // Opening a chat clears "unread" through the mark_conversation_read function.
+    if (value.unreadBy && (value.unreadBy as any).__arrayOp === 'remove') {
+      const { error } = await supabase.rpc('mark_conversation_read', { target_conversation_id: conversationId });
+      if (error) throw error;
+    }
+    if (value.disappearAfterSeconds !== undefined) {
+      const { error } = await supabase.from('conversations').update({ disappear_after_seconds: value.disappearAfterSeconds }).eq('id', conversationId);
       if (error) throw error;
     }
     return;
@@ -244,10 +282,10 @@ export const updateDoc = async (ref: Ref, value: Record<string, any>) => {
 };
 
 export const deleteDoc = async (ref: Ref) => {
-  const [root, id, child] = ref.path;
+  const [root, id, child, childId] = ref.path;
   if (root === 'chats' && child === 'messages') {
-    const conversationId = await getChatId(id);
-    const { error } = await supabase.from('messages').delete().eq('id', child);
+    if (!childId) return;
+    const { error } = await supabase.from('messages').delete().eq('id', childId);
     if (error) throw error;
     return;
   }
@@ -283,6 +321,7 @@ export const onSnapshot = (source: any, next: (snapshot: any) => void, error?: (
         if (!conversationId || !active) return;
         channel = supabase.channel(`nightgram-messages-${conversationId}-${Math.random()}`)
           .on('postgres_changes', { event: '*', schema: 'public', table: 'messages', filter: `conversation_id=eq.${conversationId}` }, refresh)
+          .on('postgres_changes', { event: '*', schema: 'public', table: 'message_reactions' }, refresh)
           .subscribe();
       }).catch((e) => error?.(e));
     } else if (root === 'chats') {

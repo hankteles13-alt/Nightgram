@@ -1848,8 +1848,8 @@ export default function App() {
               )}
 
               {activeTab === 'moments' && (
-                <div className="w-full h-full flex-1 overflow-y-auto" id="moments-tab-pane">
-                  <NightgramMomentsSection currentUser={currentUser} />
+                <div className="w-full h-full flex-1 flex flex-col min-h-0 overflow-hidden" id="moments-tab-pane">
+                  <NightgramMomentsSection currentUser={currentUser} onOpenChatWithUser={handleOpenChatWithUser} />
                 </div>
               )}
 

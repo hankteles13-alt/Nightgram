@@ -1,9 +1,10 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import {
   BookOpen, Plus, LockKeyhole, Globe2, Trash2, X, Sparkles, Clock3, History,
-  LoaderCircle, ImagePlus, Video, UploadCloud, PlayCircle, CalendarDays
+  LoaderCircle, ImagePlus, Video, UploadCloud, PlayCircle, CalendarDays, Users, UserPlus, Check
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import CirclesManager from './CirclesManager';
 
 type LifeChapter = {
   id: string;
@@ -11,10 +12,15 @@ type LifeChapter = {
   title: string;
   description: string;
   cover_url: string | null;
-  visibility: 'private' | 'public';
+  visibility: 'private' | 'public' | 'circle';
+  circle_id: string | null;
   created_at: string;
   updated_at: string;
 };
+
+type Collaborator = { chapter_id: string; user_id: string; invited_by: string; status: 'pending' | 'accepted' };
+type PersonInfo = { id: string; username: string | null; display_name: string | null };
+type OnThisDayMemory = { id: string; chapter_id: string; storage_path: string; media_type: 'image' | 'video'; caption: string; memory_date: string; years_ago: number; signedUrl?: string };
 
 type ChapterMemory = {
   id: string;
@@ -45,7 +51,14 @@ export default function LifeChaptersSection({ currentUser }: Props) {
   const [showForm, setShowForm] = useState(false);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
-  const [visibility, setVisibility] = useState<'private' | 'public'>('private');
+  const [visibility, setVisibility] = useState<'private' | 'public' | 'circle'>('private');
+  const [circleId, setCircleId] = useState('');
+  const [circles, setCircles] = useState<{ id: string; name: string; owner_id: string }[]>([]);
+  const [collaborators, setCollaborators] = useState<Collaborator[]>([]);
+  const [people, setPeople] = useState<Record<string, PersonInfo>>({});
+  const [inviteInputs, setInviteInputs] = useState<Record<string, string>>({});
+  const [onThisDay, setOnThisDay] = useState<OnThisDayMemory[]>([]);
+  const [showCircles, setShowCircles] = useState(false);
   const [memoryDate, setMemoryDate] = useState(localToday);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
@@ -57,7 +70,6 @@ export default function LifeChaptersSection({ currentUser }: Props) {
     const { data, error: queryError } = await supabase
       .from('life_chapters')
       .select('*')
-      .or(`user_id.eq.${userId},visibility.eq.public`)
       .order('created_at', { ascending: false });
     if (queryError) {
       setError('Could not load Life Chapters. Please try again.');
@@ -66,6 +78,33 @@ export default function LifeChaptersSection({ currentUser }: Props) {
     }
     const chapterRows = (data || []) as LifeChapter[];
     setChapters(chapterRows);
+
+    // Circles, collaborators and people names (for sharing).
+    const [{ data: circleRows }, { data: collabRows }] = await Promise.all([
+      supabase.from('circles').select('id,name,owner_id').order('created_at', { ascending: true }),
+      supabase.from('life_chapter_collaborators').select('chapter_id,user_id,invited_by,status'),
+    ]);
+    setCircles((circleRows || []) as { id: string; name: string; owner_id: string }[]);
+    const collabs = (collabRows || []) as Collaborator[];
+    setCollaborators(collabs);
+    const personIds = [...new Set(collabs.flatMap((c) => [c.user_id, c.invited_by]).concat(chapterRows.map((c) => c.user_id)))].filter((id) => id && id !== userId);
+    if (personIds.length) {
+      const { data: profileRows } = await supabase.from('profiles').select('id,username,display_name').in('id', personIds);
+      setPeople(Object.fromEntries(((profileRows || []) as PersonInfo[]).map((p) => [p.id, p])));
+    }
+
+    // "On this day": your own memories from earlier years.
+    const { data: dayRows } = await supabase.rpc('on_this_day', { p_today: localToday() });
+    const dayMemories = (dayRows || []) as OnThisDayMemory[];
+    if (dayMemories.length) {
+      const withDayUrls = await Promise.all(dayMemories.slice(0, 6).map(async (memory) => {
+        const { data: signed } = await supabase.storage.from(MEDIA_BUCKET).createSignedUrl(memory.storage_path, 60 * 60);
+        return { ...memory, signedUrl: signed?.signedUrl };
+      }));
+      setOnThisDay(withDayUrls);
+    } else {
+      setOnThisDay([]);
+    }
 
     const { data: memoryRows, error: memoryError } = await supabase
       .from('life_chapter_memories')
@@ -88,6 +127,7 @@ export default function LifeChaptersSection({ currentUser }: Props) {
   const createChapter = async (event: React.FormEvent) => {
     event.preventDefault();
     if (!userId || !title.trim()) return;
+    if (visibility === 'circle' && !circleId) { setError('Choose which circle can see this chapter, or create one first.'); return; }
     setSaving(true);
     setError('');
     setNotice('');
@@ -96,6 +136,7 @@ export default function LifeChaptersSection({ currentUser }: Props) {
       title: title.trim(),
       description: description.trim(),
       visibility,
+      circle_id: visibility === 'circle' ? circleId : null,
     });
     setSaving(false);
     if (insertError) {
@@ -105,6 +146,7 @@ export default function LifeChaptersSection({ currentUser }: Props) {
     setTitle('');
     setDescription('');
     setVisibility('private');
+    setCircleId('');
     setShowForm(false);
     setNotice('Your chapter has been saved.');
     await loadChapters();
@@ -114,8 +156,9 @@ export default function LifeChaptersSection({ currentUser }: Props) {
     if (!file) return;
     setError('');
     setNotice('');
-    if (chapter.user_id !== userId) {
-      setError('You can only add memories to your own chapters.');
+    const isContributor = collaborators.some((c) => c.chapter_id === chapter.id && c.user_id === userId && c.status === 'accepted');
+    if (chapter.user_id !== userId && !isContributor) {
+      setError('You can only add memories to your own chapters or chapters you were invited to.');
       return;
     }
     if (!ALLOWED_TYPES.includes(file.type)) {
@@ -162,7 +205,8 @@ export default function LifeChaptersSection({ currentUser }: Props) {
   };
 
   const deleteMemory = async (memory: ChapterMemory) => {
-    if (memory.user_id !== userId) return;
+    const chapterOwner = chapters.find((c) => c.id === memory.chapter_id)?.user_id === userId;
+    if (memory.user_id !== userId && !chapterOwner) return;
     if (!window.confirm('Delete this photo or video memory?')) return;
     setError('');
     const { error: storageError } = await supabase.storage.from(MEDIA_BUCKET).remove([memory.storage_path]);
@@ -170,7 +214,7 @@ export default function LifeChaptersSection({ currentUser }: Props) {
       setError('Could not delete this file. Please try again.');
       return;
     }
-    const { error: rowError } = await supabase.from('life_chapter_memories').delete().eq('id', memory.id).eq('user_id', userId);
+    const { error: rowError } = await supabase.from('life_chapter_memories').delete().eq('id', memory.id);
     if (rowError) {
       setError('The file was removed, but its record could not be deleted. Refresh the page.');
       return;
@@ -194,6 +238,42 @@ export default function LifeChaptersSection({ currentUser }: Props) {
     setNotice('Chapter deleted.');
   };
 
+  const pendingInvites = collaborators.filter((c) => c.user_id === userId && c.status === 'pending');
+  const nameOf = (id: string) => people[id]?.display_name || people[id]?.username || 'a Nightgram member';
+
+  const answerInvite = async (invite: Collaborator, accept: boolean) => {
+    setError('');
+    const result = accept
+      ? await supabase.from('life_chapter_collaborators').update({ status: 'accepted' }).eq('chapter_id', invite.chapter_id).eq('user_id', userId)
+      : await supabase.from('life_chapter_collaborators').delete().eq('chapter_id', invite.chapter_id).eq('user_id', userId);
+    if (result.error) { setError('Could not answer the invitation. Please try again.'); return; }
+    setNotice(accept ? 'You joined the chapter. You can now add your own photos and videos.' : 'Invitation declined.');
+    await loadChapters();
+  };
+
+  const inviteToChapter = async (chapter: LifeChapter) => {
+    const handle = (inviteInputs[chapter.id] || '').trim().replace(/^@/, '').replace(/[^a-zA-Z0-9._-]/g, '');
+    if (!handle) return;
+    setError('');
+    const { data: found } = await supabase.from('profiles').select('id,username,display_name').ilike('username', handle).limit(1);
+    const person = (found || [])[0] as PersonInfo | undefined;
+    if (!person) { setError(`No one found with the username “${handle}”.`); return; }
+    if (person.id === userId) { setError('You already own this chapter.'); return; }
+    if (collaborators.some((c) => c.chapter_id === chapter.id && c.user_id === person.id)) { setError(`${person.display_name || person.username} is already invited.`); return; }
+    const { error: inviteError } = await supabase.from('life_chapter_collaborators').insert({ chapter_id: chapter.id, user_id: person.id, invited_by: userId, status: 'pending' });
+    if (inviteError) { setError('Could not send the invitation. Please try again.'); return; }
+    setInviteInputs((s) => ({ ...s, [chapter.id]: '' }));
+    setNotice(`Invitation sent to ${person.display_name || person.username}. They need to accept before they can add memories.`);
+    await loadChapters();
+  };
+
+  const removeCollaborator = async (chapterId: string, personId: string) => {
+    setError('');
+    const { error: removeError } = await supabase.from('life_chapter_collaborators').delete().eq('chapter_id', chapterId).eq('user_id', personId);
+    if (removeError) { setError('Could not remove that person. Please try again.'); return; }
+    await loadChapters();
+  };
+
   return (
     <div className="mx-auto w-full max-w-5xl px-4 py-6 sm:px-6">
       <div className="relative mb-6 overflow-hidden rounded-3xl border border-cyan-500/20 bg-gradient-to-br from-[#111425] via-[#10101b] to-[#1a1025] p-6 sm:p-8">
@@ -208,10 +288,13 @@ export default function LifeChaptersSection({ currentUser }: Props) {
               Keep your journey in one place. Create chapters and add the photos and videos you want to remember.
             </p>
           </div>
-          <button onClick={() => { setShowForm((value) => !value); setError(''); }} className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-cyan-400 to-violet-500 px-4 py-3 text-sm font-bold text-slate-950 shadow-lg shadow-cyan-950/40 transition hover:brightness-110">
-            {showForm ? <X className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
-            {showForm ? 'Cancel' : 'Create a chapter'}
-          </button>
+          <div className="flex shrink-0 flex-wrap gap-2">
+            <button type="button" onClick={() => setShowCircles(true)} className="inline-flex items-center justify-center gap-2 rounded-xl border border-cyan-400/30 px-4 py-3 text-sm font-bold text-cyan-200 transition hover:bg-cyan-400/10"><Users className="h-4 w-4" /> Circles</button>
+            <button onClick={() => { setShowForm((value) => !value); setError(''); }} className="inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-cyan-400 to-violet-500 px-4 py-3 text-sm font-bold text-slate-950 shadow-lg shadow-cyan-950/40 transition hover:brightness-110">
+              {showForm ? <X className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
+              {showForm ? 'Cancel' : 'Create a chapter'}
+            </button>
+          </div>
         </div>
       </div>
 
@@ -223,10 +306,20 @@ export default function LifeChaptersSection({ currentUser }: Props) {
           <label className="mb-2 block text-xs font-semibold uppercase tracking-wider text-zinc-400" htmlFor="chapter-description">What is this chapter about?</label>
           <textarea id="chapter-description" maxLength={2000} rows={4} value={description} onChange={(event) => setDescription(event.target.value)} placeholder="Write about the memories, people, or goals you want to collect here..." className="mb-4 w-full resize-y rounded-xl border border-zinc-700 bg-black/40 px-4 py-3 text-sm text-white outline-none transition placeholder:text-zinc-600 focus:border-cyan-400" />
           <label className="mb-2 block text-xs font-semibold uppercase tracking-wider text-zinc-400" htmlFor="chapter-privacy">Who can see this chapter?</label>
-          <select id="chapter-privacy" value={visibility} onChange={(event) => setVisibility(event.target.value as 'private' | 'public')} className="mb-5 w-full rounded-xl border border-zinc-700 bg-black/40 px-4 py-3 text-sm text-white outline-none focus:border-cyan-400">
+          <select id="chapter-privacy" value={visibility} onChange={(event) => setVisibility(event.target.value as 'private' | 'public' | 'circle')} className="mb-5 w-full rounded-xl border border-zinc-700 bg-black/40 px-4 py-3 text-sm text-white outline-none focus:border-cyan-400">
             <option value="private">Private — only me</option>
+            <option value="circle">A close circle — only people I choose</option>
             <option value="public">Public — visible to Nightgram users</option>
           </select>
+          {visibility === 'circle' && (
+            <div className="-mt-2 mb-5">
+              <select aria-label="Circle for this chapter" value={circleId} onChange={(event) => setCircleId(event.target.value)} className="w-full rounded-xl border border-zinc-700 bg-black/40 px-4 py-3 text-sm text-white outline-none focus:border-cyan-400">
+                <option value="">Choose a circle…</option>
+                {circles.filter((c) => c.owner_id === userId).map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+              </select>
+              {circles.filter((c) => c.owner_id === userId).length === 0 && <p className="mt-2 text-xs text-zinc-500">You have no circles yet. <button type="button" onClick={() => setShowCircles(true)} className="font-semibold text-cyan-300 underline">Create one</button>.</p>}
+            </div>
+          )}
           <div className="flex flex-wrap items-center justify-between gap-3">
             <p className="text-xs text-zinc-500">New chapters are private by default. Each file can be up to 50 MB.</p>
             <button disabled={saving || !title.trim()} type="submit" className="inline-flex items-center gap-2 rounded-xl bg-cyan-400 px-5 py-3 text-sm font-bold text-slate-950 transition hover:bg-cyan-300 disabled:cursor-not-allowed disabled:opacity-50">
@@ -234,6 +327,41 @@ export default function LifeChaptersSection({ currentUser }: Props) {
             </button>
           </div>
         </form>
+      )}
+
+      {pendingInvites.length > 0 && (
+        <section aria-label="Chapter invitations" className="mb-4 space-y-2">
+          {pendingInvites.map((invite) => {
+            const chapter = chapters.find((c) => c.id === invite.chapter_id);
+            return (
+              <div key={invite.chapter_id} className="flex flex-col gap-3 rounded-2xl border border-violet-400/30 bg-violet-950/20 p-4 sm:flex-row sm:items-center sm:justify-between">
+                <p className="text-sm text-violet-100"><UserPlus className="mr-2 inline h-4 w-4 text-violet-300" /><strong>{nameOf(invite.invited_by)}</strong> invited you to add memories to <strong>{chapter?.title || 'a Life Chapter'}</strong>.</p>
+                <div className="flex gap-2">
+                  <button type="button" onClick={() => void answerInvite(invite, true)} className="inline-flex items-center gap-1.5 rounded-lg bg-violet-400 px-3 py-2 text-xs font-bold text-slate-950 hover:bg-violet-300"><Check className="h-3.5 w-3.5" /> Accept</button>
+                  <button type="button" onClick={() => void answerInvite(invite, false)} className="rounded-lg border border-zinc-700 px-3 py-2 text-xs text-zinc-300 hover:border-rose-500/40 hover:text-rose-300">Decline</button>
+                </div>
+              </div>
+            );
+          })}
+        </section>
+      )}
+
+      {onThisDay.length > 0 && (
+        <section aria-label="On this day" className="mb-6 rounded-2xl border border-amber-400/20 bg-gradient-to-br from-amber-950/20 to-[#10101b] p-4 sm:p-5">
+          <h3 className="mb-3 flex items-center gap-2 text-sm font-bold text-amber-200"><History className="h-4 w-4" /> On this day</h3>
+          <div className="flex gap-3 overflow-x-auto pb-1">
+            {onThisDay.map((memory) => (
+              <figure key={memory.id} className="w-36 flex-none">
+                <div className="overflow-hidden rounded-xl border border-zinc-800 bg-black/40">
+                  {memory.signedUrl && (memory.media_type === 'video'
+                    ? <video src={memory.signedUrl} controls preload="metadata" className="aspect-square w-full object-cover" aria-label="Video memory from this day" />
+                    : <a href={memory.signedUrl} target="_blank" rel="noreferrer" aria-label="Open photo from this day"><img src={memory.signedUrl} alt="Memory from this day" loading="lazy" className="aspect-square w-full object-cover" /></a>)}
+                </div>
+                <figcaption className="mt-1.5 text-[11px] text-amber-200/80">{memory.years_ago} {memory.years_ago === 1 ? 'year' : 'years'} ago</figcaption>
+              </figure>
+            ))}
+          </div>
+        </section>
       )}
 
       {error && <div role="alert" className="mb-4 rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-200">{error}</div>}
@@ -252,6 +380,10 @@ export default function LifeChaptersSection({ currentUser }: Props) {
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {chapters.map((chapter) => {
             const ownChapter = chapter.user_id === userId;
+            const isContributor = collaborators.some((c) => c.chapter_id === chapter.id && c.user_id === userId && c.status === 'accepted');
+            const canAdd = ownChapter || isContributor;
+            const chapterPeople = collaborators.filter((c) => c.chapter_id === chapter.id);
+            const circleName = circles.find((c) => c.id === chapter.circle_id)?.name;
             const chapterMemories = memories.filter((memory) => memory.chapter_id === chapter.id);
             return (
               <article key={chapter.id} className="group overflow-hidden rounded-2xl border border-zinc-800 bg-[#0c0c13] transition hover:border-cyan-500/40 hover:shadow-xl hover:shadow-cyan-950/20">
@@ -260,9 +392,9 @@ export default function LifeChaptersSection({ currentUser }: Props) {
                   <div className="mb-4 flex items-start justify-between gap-3">
                     <div className="flex h-11 w-11 items-center justify-center rounded-xl border border-cyan-400/20 bg-gradient-to-br from-cyan-400/15 to-violet-500/15"><BookOpen className="h-5 w-5 text-cyan-300" /></div>
                     <div className="flex items-center gap-2">
-                      <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-semibold ${chapter.visibility === 'public' ? 'bg-emerald-400/10 text-emerald-300' : 'bg-zinc-800 text-zinc-300'}`}>
-                        {chapter.visibility === 'public' ? <Globe2 className="h-3 w-3" /> : <LockKeyhole className="h-3 w-3" />}
-                        {chapter.visibility === 'public' ? 'Public' : 'Private'}
+                      <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-semibold ${chapter.visibility === 'public' ? 'bg-emerald-400/10 text-emerald-300' : chapter.visibility === 'circle' ? 'bg-violet-400/10 text-violet-300' : 'bg-zinc-800 text-zinc-300'}`}>
+                        {chapter.visibility === 'public' ? <Globe2 className="h-3 w-3" /> : chapter.visibility === 'circle' ? <Users className="h-3 w-3" /> : <LockKeyhole className="h-3 w-3" />}
+                        {chapter.visibility === 'public' ? 'Public' : chapter.visibility === 'circle' ? (circleName ? `Circle · ${circleName}` : 'Circle') : 'Private'}
                       </span>
                       {ownChapter && <button aria-label={`Delete ${chapter.title}`} title="Delete chapter" onClick={() => void deleteChapter(chapter)} className="rounded-lg p-1.5 text-zinc-500 transition hover:bg-rose-500/10 hover:text-rose-300"><Trash2 className="h-4 w-4" /></button>}
                     </div>
@@ -281,14 +413,14 @@ export default function LifeChaptersSection({ currentUser }: Props) {
                               <img src={memory.signedUrl} alt="Life Chapter memory" loading="lazy" className="aspect-square w-full object-cover" />
                             </a>
                           )) : <div className="flex aspect-square items-center justify-center text-zinc-500"><ImagePlus className="h-5 w-5" /></div>}
-                          {ownChapter && <button onClick={() => void deleteMemory(memory)} aria-label="Delete memory" title="Delete memory" className="absolute right-1 top-1 rounded-lg bg-black/75 p-1.5 text-white hover:bg-rose-600"><Trash2 className="h-3.5 w-3.5" /></button>}
+                          {(ownChapter || memory.user_id === userId) && <button onClick={() => void deleteMemory(memory)} aria-label="Delete memory" title="Delete memory" className="absolute right-1 top-1 rounded-lg bg-black/75 p-1.5 text-white hover:bg-rose-600"><Trash2 className="h-3.5 w-3.5" /></button>}
                           {memory.media_type === 'video' && <span className="absolute bottom-1 left-1 inline-flex items-center gap-1 rounded-md bg-black/70 px-1.5 py-1 text-[10px] text-white"><PlayCircle className="h-3 w-3" /> Video</span>}
                         </div>
                       ))}
                     </div>
                   )}
 
-                  {ownChapter && (
+                  {canAdd && (
                     <div className="mt-4">
 
                       <label className="mb-2 block text-[10px] font-semibold uppercase tracking-wider text-zinc-500" htmlFor={`memory-date-${chapter.id}`}>Memory date</label>
@@ -306,8 +438,28 @@ export default function LifeChaptersSection({ currentUser }: Props) {
                     </div>
                   )}
 
+                  {ownChapter && (
+                    <div className="mt-4 rounded-xl border border-zinc-800 bg-black/20 p-3">
+                      <p className="mb-2 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-zinc-500"><Users className="h-3 w-3" /> People who can add memories</p>
+                      {chapterPeople.length > 0 && (
+                        <ul className="mb-2 flex flex-wrap gap-1.5">
+                          {chapterPeople.map((c) => (
+                            <li key={c.user_id} className="inline-flex items-center gap-1 rounded-full border border-zinc-700 py-0.5 pl-2.5 pr-1 text-[11px] text-zinc-200">
+                              {nameOf(c.user_id)}{c.status === 'pending' && <span className="text-zinc-500">(invited)</span>}
+                              <button type="button" onClick={() => void removeCollaborator(c.chapter_id, c.user_id)} aria-label={`Remove ${nameOf(c.user_id)}`} className="grid h-4 w-4 place-items-center rounded-full text-zinc-500 hover:bg-white/10 hover:text-white"><X className="h-3 w-3" /></button>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                      <form onSubmit={(event) => { event.preventDefault(); void inviteToChapter(chapter); }} className="flex gap-2">
+                        <input value={inviteInputs[chapter.id] || ''} onChange={(event) => setInviteInputs((s) => ({ ...s, [chapter.id]: event.target.value }))} placeholder="Invite by username" aria-label={`Invite someone to ${chapter.title}`} className="min-w-0 flex-1 rounded-lg border border-zinc-800 bg-black/40 px-2.5 py-1.5 text-xs text-white outline-none placeholder:text-zinc-600 focus:border-cyan-400" />
+                        <button type="submit" disabled={!(inviteInputs[chapter.id] || '').trim()} className="rounded-lg border border-cyan-400/40 px-2.5 py-1.5 text-xs font-semibold text-cyan-200 hover:bg-cyan-400/10 disabled:opacity-50">Invite</button>
+                      </form>
+                    </div>
+                  )}
+
                   <div className="mt-5 flex items-center justify-between border-t border-zinc-800/80 pt-3 text-[11px] text-zinc-500">
-                    <span>{ownChapter ? 'Your chapter' : 'Shared by a Nightgram member'}</span>
+                    <span>{ownChapter ? 'Your chapter' : isContributor ? `Shared with you by ${nameOf(chapter.user_id)}` : chapter.visibility === 'circle' ? `Shared with a circle by ${nameOf(chapter.user_id)}` : 'Shared by a Nightgram member'}</span>
                     <span className="inline-flex items-center gap-1"><Clock3 className="h-3 w-3" />{new Date(chapter.created_at).toLocaleDateString()}</span>
                   </div>
                 </div>
@@ -356,6 +508,8 @@ export default function LifeChaptersSection({ currentUser }: Props) {
           </div>
         </section>
       )}
+
+      {showCircles && userId && <CirclesManager userId={userId} onClose={() => setShowCircles(false)} onChanged={() => void loadChapters()} />}
 
       <p className="mt-8 text-center text-[11px] leading-5 text-zinc-600">Your memories belong to you. Private chapter media is stored in a private bucket and requires authorization to view.</p>
     </div>

@@ -2,6 +2,9 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { ChatRoom, ChatMessage, UserProfile, Message } from '../types';
 import UnifiedMessageBubble from './UnifiedMessageBubble';
+import ChatPrivacyControls from './chat/ChatPrivacyControls';
+import ChatStatusBanner from './chat/ChatStatusBanner';
+import ReactableMessage from './chat/ReactableMessage';
 import WhatsAppPollMessage, { PollData } from './WhatsAppPollMessage';
 import CreatePollModal from './CreatePollModal';
 import AttachmentBottomSheet from './AttachmentBottomSheet';
@@ -3057,11 +3060,16 @@ export default function MessagesSection({
                 : chatMessages;
 
               return displayDirectMsgs.length > 0 ? (
-                displayDirectMsgs.map((msg, msgIdx) => {
+                <>
+                <ChatStatusBanner
+                  conversationId={currentDirectChat.id}
+                  partnerUid={activePartner?.uid}
+                  partnerName={activePartner?.displayName || activePartner?.username || 'this contact'}
+                />
+                {displayDirectMsgs.map((msg, msgIdx) => {
                   const isMe = msg.senderId === currentUser?.uid;
-                  return (
+                  const bubble = (
                     <UnifiedMessageBubble
-                      key={`direct-msg-${msg.id || msgIdx}-${msgIdx}`}
                       message={msg}
                       isMe={isMe}
                       onReply={(m) => {
@@ -3078,7 +3086,19 @@ export default function MessagesSection({
                       isHighlighted={inChatSearch.trim() ? msg.text?.toLowerCase().includes(inChatSearch.toLowerCase()) : false}
                     />
                   );
-                })
+                  return (
+                    <ReactableMessage
+                      key={`direct-msg-${msg.id || msgIdx}-${msgIdx}`}
+                      messageId={String(msg.id)}
+                      reactions={(msg as any).reactions}
+                      isMe={isMe}
+                      currentUid={currentUser?.uid}
+                    >
+                      {bubble}
+                    </ReactableMessage>
+                  );
+                })}
+                </>
               ) : (
                 <div className="h-full flex flex-col items-center justify-center text-center p-6 space-y-3" id="empty-chat-state">
                   <div className="w-12 h-12 rounded-full bg-cyan-950/40 border border-cyan-800/50 flex items-center justify-center text-cyan-400">
@@ -4188,14 +4208,22 @@ export default function MessagesSection({
                       <span className="text-[10px] text-zinc-500 font-mono">Delete all messages</span>
                     </button>
 
-                    <button
-                      type="button"
-                      onClick={() => alert(`Blocked ${activeContactInfo.name}.`)}
-                      className="w-full p-3.5 px-4 text-left text-xs font-bold text-red-400 hover:bg-red-950/20 transition flex items-center space-x-2.5 cursor-pointer"
-                    >
-                      <Ban className="w-4 h-4 text-red-400" />
-                      <span>Block {activeContactInfo.name}</span>
-                    </button>
+                    {!activeDemoChat && currentDirectChat && activePartner?.uid ? (
+                      <ChatPrivacyControls
+                        conversationId={currentDirectChat.id}
+                        partnerUid={activePartner.uid}
+                        partnerName={activeContactInfo.name}
+                      />
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => alert(`Blocked ${activeContactInfo.name}.`)}
+                        className="w-full p-3.5 px-4 text-left text-xs font-bold text-red-400 hover:bg-red-950/20 transition flex items-center space-x-2.5 cursor-pointer"
+                      >
+                        <Ban className="w-4 h-4 text-red-400" />
+                        <span>Block {activeContactInfo.name}</span>
+                      </button>
+                    )}
 
                     <button
                       type="button"
