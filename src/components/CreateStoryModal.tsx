@@ -1,6 +1,6 @@
 import React, { useRef, useState } from 'react';
 import { ImagePlus, X, LoaderCircle, Trash2 } from 'lucide-react';
-import { optimizeImageForFirestore, formatDataUrlSize } from '../lib/imageOptimizer';
+import { optimizeImageForFirestore } from '../lib/imageOptimizer';
 import { UserProfile } from '../types';
 
 interface CreateStoryModalProps {
