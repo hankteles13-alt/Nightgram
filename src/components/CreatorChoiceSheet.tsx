@@ -53,9 +53,9 @@ export default function CreatorChoiceSheet({
           </button>
         </div>
 
-        {/* 3 Action Cards */}
+        {/* Two core sharing options */}
         <div className="grid grid-cols-1 gap-3 pt-1">
-          {/* 2. Photo / Feed Post */}
+          {/* 1. Photo / Feed Post */}
           <button
             type="button"
             id="create-post-choice-btn"
@@ -83,7 +83,7 @@ export default function CreatorChoiceSheet({
             </div>
           </button>
 
-          {/* 3. 24h Story */}
+          {/* 2. 24h Story */}
           <button
             type="button"
             id="create-story-choice-btn"
