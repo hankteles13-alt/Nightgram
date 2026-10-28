@@ -8,6 +8,7 @@ interface InstagramFeedSectionProps {
   onLike: (postId: string) => void;
   onSave: (postId: string) => void;
   onAddComment: (postId: string, commentText: string) => void;
+  onDeletePost?: (postId: string) => void;
   onOpenChatWithUser?: (user: { uid?: string; username: string; displayName?: string; avatar?: string }) => void;
   onOpenUserProfile?: (user: { uid?: string; username: string; displayName?: string; avatar?: string }) => void;
 }
@@ -18,9 +19,11 @@ export default function InstagramFeedSection({
   onLike,
   onSave,
   onAddComment,
+  onDeletePost,
   onOpenUserProfile,
 }: InstagramFeedSectionProps) {
   const [slides, setSlides] = useState<Record<string, number>>({});
+  const [openPostMenu, setOpenPostMenu] = useState<string | null>(null);
   const [commentInputs, setCommentInputs] = useState<Record<string, string>>({});
   const [expandedCaptions, setExpandedCaptions] = useState<Record<string, boolean>>({});
   const [notice, setNotice] = useState('');
@@ -33,8 +36,25 @@ export default function InstagramFeedSection({
     [posts],
   );
 
+  const postLink = (post: Post) => {
+    const url = new URL(window.location.href);
+    url.hash = `post-${post.id}`;
+    return url.toString();
+  };
+
+  const copyPostLink = async (post: Post) => {
+    try {
+      await navigator.clipboard.writeText(postLink(post));
+      setNotice('Post link copied.');
+    } catch {
+      setNotice('Could not copy the link on this browser.');
+    }
+    setOpenPostMenu(null);
+    window.setTimeout(() => setNotice(''), 2200);
+  };
+
   const sharePost = async (post: Post) => {
-    const url = window.location.href;
+    const url = postLink(post);
     try {
       if (navigator.share) {
         await navigator.share({ title: `Nightgram post by @${post.username}`, text: post.caption, url });
@@ -90,7 +110,7 @@ export default function InstagramFeedSection({
         const commentCount = post.comments?.length || 0;
 
         return (
-          <article key={post.id} className="overflow-hidden border-y border-white/10 bg-[#09090f] sm:rounded-2xl sm:border">
+          <article id={`post-${post.id}`} key={post.id} className="overflow-hidden border-y border-white/10 bg-[#09090f] sm:rounded-2xl sm:border">
             <header className="flex items-center gap-3 px-3 py-3 sm:px-4">
               <button type="button" onClick={() => onOpenUserProfile?.({ uid: post.userId, username, displayName: username, avatar })} className="rounded-full p-[2px] bg-gradient-to-tr from-amber-400 via-pink-500 to-violet-500" aria-label={`Open @${username}'s profile`}>
                 <img src={avatar} alt="" className="h-10 w-10 rounded-full border-2 border-[#09090f] object-cover" referrerPolicy="no-referrer" />
@@ -100,7 +120,32 @@ export default function InstagramFeedSection({
                 {post.location && <p className="mt-0.5 flex items-center gap-1 truncate text-[11px] text-zinc-400"><MapPin className="h-3 w-3" />{post.location}</p>}
                 {!post.location && <p className="mt-0.5 text-[11px] text-zinc-500">{post.time || 'Just now'}</p>}
               </div>
-              <button type="button" className="rounded-full p-2 text-zinc-400 transition hover:bg-white/10 hover:text-white" title="More options" aria-label="More options"><MoreHorizontal className="h-5 w-5" /></button>
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => setOpenPostMenu((current) => current === post.id ? null : post.id)}
+                  className="rounded-full p-2 text-zinc-400 transition hover:bg-white/10 hover:text-white"
+                  title="More options"
+                  aria-label={`More options for @${username}'s post`}
+                  aria-expanded={openPostMenu === post.id}
+                ><MoreHorizontal className="h-5 w-5" /></button>
+                {openPostMenu === post.id && (
+                  <div className="absolute right-0 top-11 z-30 min-w-44 overflow-hidden rounded-xl border border-white/10 bg-[#171720] p-1 shadow-xl">
+                    <button type="button" onClick={() => void copyPostLink(post)} className="block w-full rounded-lg px-3 py-2.5 text-left text-sm text-zinc-200 hover:bg-white/10">Copy post link</button>
+                    <button type="button" onClick={() => void sharePost(post)} className="block w-full rounded-lg px-3 py-2.5 text-left text-sm text-zinc-200 hover:bg-white/10">Share post</button>
+                    {currentUser?.uid && post.userId === currentUser.uid && onDeletePost && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setOpenPostMenu(null);
+                          onDeletePost(post.id);
+                        }}
+                        className="block w-full rounded-lg px-3 py-2.5 text-left text-sm text-rose-300 hover:bg-rose-500/10"
+                      >Delete post</button>
+                    )}
+                  </div>
+                )}
+              </div>
             </header>
 
             <div className="relative aspect-square w-full overflow-hidden bg-zinc-950">
@@ -126,6 +171,13 @@ export default function InstagramFeedSection({
               {post.caption && <p className="mt-2 text-sm leading-6 text-zinc-200"><span className="mr-2 font-bold text-white">{username}</span>{expandedCaptions[post.id] || post.caption.length <= 160 ? post.caption : `${post.caption.slice(0, 160).trimEnd()}…`}{post.caption.length > 160 && <button type="button" onClick={() => setExpandedCaptions((prev) => ({ ...prev, [post.id]: !prev[post.id] }))} className="ml-1 text-zinc-500 hover:text-zinc-300">{expandedCaptions[post.id] ? 'less' : 'more'}</button>}</p>}
               {commentCount > 0 && <p className="mt-2 text-sm text-zinc-500">View all {commentCount} {commentCount === 1 ? 'comment' : 'comments'}</p>}
               {(post.comments || []).slice(-2).map((comment, index) => <p key={comment.id || index} className="mt-1 truncate text-sm text-zinc-300"><span className="mr-2 font-semibold text-white">{comment.username}</span>{comment.text}</p>)}
+              {post.tags?.length > 0 && (
+                <div className="mt-2 flex flex-wrap gap-x-2 gap-y-1">
+                  {post.tags.slice(0, 8).map((tag) => (
+                    <span key={tag} className="text-xs text-cyan-300/80">#{tag.replace(/^#/, '')}</span>
+                  ))}
+                </div>
+              )}
               <p className="mt-2 text-[10px] uppercase tracking-wider text-zinc-600">{post.time || 'Just now'}</p>
 
               <form onSubmit={(event) => handleComment(event, post)} className="mt-3 flex items-center gap-2 border-t border-white/10 pt-3">
