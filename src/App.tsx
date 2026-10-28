@@ -732,6 +732,23 @@ export default function App() {
     }
   };
 
+  const handleDeletePost = async (postId: string) => {
+    if (!currentUser?.uid) return;
+    const target = posts.find((post) => post.id === postId);
+    if (!target || target.userId !== currentUser.uid) return;
+    if (!window.confirm('Delete this post? This cannot be undone.')) return;
+
+    // Remove it immediately from the feed, then persist the deletion.
+    setPosts((previous) => previous.filter((post) => post.id !== postId));
+    try {
+      await deleteDoc(doc(db, 'posts', postId));
+    } catch (err) {
+      console.error('Error deleting post:', err);
+      setPosts((previous) => previous.some((post) => post.id === postId) ? previous : [target, ...previous]);
+      window.alert('The post could not be deleted. Please try again.');
+    }
+  };
+
   const handleSavePost = async (postId: string) => {
     if (!currentUser) return;
     try {
@@ -1788,6 +1805,7 @@ export default function App() {
                     onLike={handleLikePost}
                     onSave={handleSavePost}
                     onAddComment={handleAddComment}
+                    onDeletePost={handleDeletePost}
                     onOpenUserProfile={(user) => setViewingUserProfile(user)}
                   />
                 </PullToRefresh>
