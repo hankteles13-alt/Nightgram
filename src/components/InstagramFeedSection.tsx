@@ -80,8 +80,8 @@ export default function InstagramFeedSection({
   };
 
   return (
-    <section className="mx-auto w-full max-w-2xl space-y-5 pb-8" aria-label="Photo feed">
-      <div className="sticky top-0 z-20 -mx-2 flex items-center justify-between border-b border-white/10 bg-[#07070d]/95 px-4 py-3 backdrop-blur-xl sm:rounded-t-2xl">
+    <section className="ng-feed-stage mx-auto w-full max-w-2xl space-y-5 pb-8" aria-label="Photo feed">
+      <div className="ng-glass-surface sticky top-0 z-20 -mx-2 flex items-center justify-between rounded-2xl px-4 py-3 sm:mx-0">
         <div>
           <p className="text-xs font-medium text-zinc-400">From your community</p>
           <h2 className="mt-0.5 text-xl font-bold tracking-tight text-white">Nightgram Feed</h2>
@@ -110,7 +110,7 @@ export default function InstagramFeedSection({
         const commentCount = post.comments?.length || 0;
 
         return (
-          <article id={`post-${post.id}`} key={post.id} className="overflow-hidden border-y border-white/10 bg-[#09090f] sm:rounded-2xl sm:border">
+          <article id={`post-${post.id}`} key={post.id} className="ng-post-card overflow-hidden border-y border-white/10 bg-[#09090f]/95 sm:rounded-2xl sm:border">
             <header className="flex items-center gap-3 px-3 py-3 sm:px-4">
               <button type="button" onClick={() => onOpenUserProfile?.({ uid: post.userId, username, displayName: username, avatar })} className="rounded-full p-[2px] bg-gradient-to-tr from-amber-400 via-pink-500 to-violet-500" aria-label={`Open @${username}'s profile`}>
                 <img src={avatar} alt="" className="h-10 w-10 rounded-full border-2 border-[#09090f] object-cover" referrerPolicy="no-referrer" />
@@ -148,8 +148,8 @@ export default function InstagramFeedSection({
               </div>
             </header>
 
-            <div className="relative aspect-square w-full overflow-hidden bg-zinc-950">
-              <img src={images[slide]} alt={post.caption ? `Photo posted by ${username}: ${post.caption}` : `Photo posted by ${username}`} className="h-full w-full object-cover" loading="lazy" referrerPolicy="no-referrer" />
+            <div className="ng-parallax-frame relative aspect-square w-full overflow-hidden bg-zinc-950">
+              <img src={images[slide]} alt={post.caption ? `Photo posted by ${username}: ${post.caption}` : `Photo posted by ${username}`} className="ng-parallax-image h-full w-full object-cover" loading="lazy" referrerPolicy="no-referrer" />
               {images.length > 1 && <>
                 <span className="absolute right-3 top-3 rounded-full bg-black/65 px-2.5 py-1 text-[11px] font-semibold text-white">{slide + 1}/{images.length}</span>
                 <button type="button" onClick={() => setSlides((prev) => ({ ...prev, [post.id]: (slide - 1 + images.length) % images.length }))} aria-label="Previous photo" className="absolute left-3 top-1/2 -translate-y-1/2 rounded-full bg-black/55 p-2 text-white backdrop-blur hover:bg-black/75"><ChevronLeft className="h-5 w-5" /></button>
