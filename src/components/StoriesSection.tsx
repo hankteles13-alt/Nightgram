@@ -131,7 +131,7 @@ export default function StoriesSection({ stories, currentUser, onOpenCreateStory
   };
 
   return (
-    <div className="w-full py-3 px-3 sm:px-4 border border-zinc-800/80 bg-[#07070d]/80 backdrop-blur-md rounded-2xl shadow-xl" id="stories-tray-container">
+    <div className="ng-glass-surface ng-story-tray w-full rounded-2xl px-3 py-3 sm:px-4" id="stories-tray-container">
       {/* Stories horizontal bar */}
       <div className="flex space-x-3.5 sm:space-x-4 overflow-x-auto pb-0.5 scrollbar-none items-center w-full" id="stories-scroll-wrapper">
         {/* Current user's story / add story option */}
