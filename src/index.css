@@ -36,3 +36,88 @@
 [class*="animate-pulse"] {
   animation-duration: 2.8s !important;
 }
+
+
+/* Nightgram motion language: glass for controls, depth for media, restrained neon ambience. */
+.ng-feed-stage {
+  position: relative;
+  isolation: isolate;
+}
+.ng-feed-stage::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  inset: 2rem -1rem auto;
+  height: 32rem;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse at 12% 8%, rgba(34, 211, 238, .10), transparent 48%),
+    radial-gradient(ellipse at 88% 22%, rgba(168, 85, 247, .12), transparent 45%);
+  filter: blur(22px);
+  animation: ng-ambient-drift 16s ease-in-out infinite alternate;
+}
+.ng-glass-surface {
+  background: linear-gradient(135deg, rgba(255,255,255,.075), rgba(255,255,255,.025)) !important;
+  border: 1px solid rgba(255,255,255,.12) !important;
+  -webkit-backdrop-filter: blur(18px) saturate(135%);
+  backdrop-filter: blur(18px) saturate(135%);
+  box-shadow: 0 12px 36px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.055);
+}
+.ng-story-tray {
+  transition: border-color .25s ease, background .25s ease;
+}
+.ng-post-card {
+  position: relative;
+  transform: perspective(1200px) translateZ(0);
+  transform-origin: center center;
+  transition: transform .32s cubic-bezier(.2,.75,.25,1), border-color .32s ease, box-shadow .32s ease;
+  will-change: transform;
+}
+.ng-post-card::before {
+  content: "";
+  position: absolute;
+  z-index: 2;
+  inset: 0 0 auto;
+  height: 1px;
+  pointer-events: none;
+  background: linear-gradient(90deg, transparent, rgba(103,232,249,.42), rgba(216,180,254,.38), transparent);
+  opacity: .55;
+}
+.ng-parallax-frame {
+  perspective: 900px;
+  isolation: isolate;
+}
+.ng-parallax-image {
+  transform: scale(1.015) translateZ(0);
+  transition: transform .75s cubic-bezier(.2,.7,.2,1), filter .5s ease;
+}
+.ng-post-card button, .ng-post-card input {
+  -webkit-tap-highlight-color: transparent;
+}
+.ng-post-card button:active {
+  transform: scale(.94);
+}
+@keyframes ng-ambient-drift {
+  from { transform: translate3d(-1%, 0, 0) scale(1); opacity: .72; }
+  to { transform: translate3d(1.5%, 1rem, 0) scale(1.04); opacity: 1; }
+}
+@media (hover: hover) and (pointer: fine) {
+  .ng-post-card:hover {
+    transform: perspective(1200px) translateY(-3px) rotateX(.35deg);
+    border-color: rgba(103,232,249,.22);
+    box-shadow: 0 18px 42px rgba(0,0,0,.22);
+  }
+  .ng-post-card:hover .ng-parallax-image {
+    transform: scale(1.055) translate3d(0,-.35%,0);
+    filter: saturate(1.06);
+  }
+  .ng-story-tray:hover {
+    border-color: rgba(167,139,250,.28) !important;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ng-feed-stage::before { animation: none; }
+  .ng-post-card, .ng-parallax-image, .ng-story-tray { transition: none !important; }
+  .ng-post-card:hover { transform: none; }
+  .ng-post-card:hover .ng-parallax-image { transform: none; }
+}
