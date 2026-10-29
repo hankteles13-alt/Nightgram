@@ -26,17 +26,10 @@
   outline-color: #a78bfa;
 }
 
-/* Keep visual effects subtle without overriding component colours or gradients. */
-[class*="shadow-[0_0_"] {
-  box-shadow: none !important;
-}
-[class*="drop-shadow-[0_0_"] {
-  filter: none !important;
-}
+/* Preserve component shadows and glow accents; soften only overly fast pulse animations. */
 [class*="animate-pulse"] {
   animation-duration: 2.8s !important;
 }
-
 
 /* Nightgram motion language: glass for controls, depth for media, restrained neon ambience. */
 .ng-feed-stage {
@@ -120,4 +113,58 @@
   .ng-post-card, .ng-parallax-image, .ng-story-tray { transition: none !important; }
   .ng-post-card:hover { transform: none; }
   .ng-post-card:hover .ng-parallax-image { transform: none; }
+}
+
+/* Polished app-wide finishing touches */
+html { scroll-behavior: smooth; }
+body {
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: rgba(10, 10, 18, .35); }
+::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, rgba(139, 92, 246, .65), rgba(34, 211, 238, .55));
+  border: 2px solid transparent;
+  background-clip: padding-box;
+  border-radius: 999px;
+}
+button, a, input, textarea, select {
+  -webkit-tap-highlight-color: transparent;
+}
+button, a {
+  transition-property: color, background-color, border-color, box-shadow, opacity, transform;
+  transition-duration: 180ms;
+  transition-timing-function: ease-out;
+}
+button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visible {
+  outline: 2px solid rgba(103, 232, 249, .9);
+  outline-offset: 3px;
+}
+.ng-glass-surface {
+  border-radius: 1.15rem;
+}
+.ng-post-card {
+  overflow: hidden;
+  border-color: rgba(255,255,255,.09);
+  box-shadow: 0 8px 28px rgba(0,0,0,.14);
+}
+.ng-story-tray {
+  border: 1px solid rgba(255,255,255,.09);
+  border-radius: 1.25rem;
+}
+@media (hover: hover) and (pointer: fine) {
+  .ng-glass-surface:hover {
+    border-color: rgba(167,139,250,.25) !important;
+    box-shadow: 0 14px 38px rgba(0,0,0,.22), inset 0 1px 0 rgba(255,255,255,.07);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  *, *::before, *::after {
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: .01ms !important;
+  }
 }
