@@ -63,7 +63,7 @@ export default function CreatorChoiceSheet({
               onClose();
               onSelectPost();
             }}
-            className="w-full p-4 rounded-2xl bg-zinc-900/60 border border-zinc-800 hover:border-zinc-700 text-left transition-all hover:scale-[1.02] active:scale-95 shadow-md group cursor-pointer flex items-center justify-between"
+            className="ng-glass-surface w-full p-4 rounded-2xl text-left transition-all hover:scale-[1.02] active:scale-95 group cursor-pointer flex items-center justify-between"
           >
             <div className="flex items-center space-x-4">
               <div className="w-12 h-12 rounded-2xl bg-zinc-800 border border-zinc-700 flex items-center justify-center text-cyan-400 group-hover:border-cyan-400 transition">
