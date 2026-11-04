@@ -296,12 +296,12 @@ export default function App() {
               data.userAvatar ||
               'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
             userId: data.userId || '',
-            image: data.image && data.image.trim() ? data.image : 'https://images.unsplash.com/photo-1540959733332-eab4deceeaf7?w=1000',
+            image: (data.image || data.media_url || data.mediaUrl || '').trim() || 'https://images.unsplash.com/photo-1540959733332-eab4deceeaf7?w=1000',
             videoUrl: data.videoUrl || '',
             duration: data.duration || '',
             mediaType: data.mediaType || (data.videoUrl ? 'video' : 'image'),
             audioTrack: data.audioTrack || '',
-            images: data.images || (data.image ? [data.image] : []),
+            images: data.images || ((data.image || data.media_url || data.mediaUrl) ? [data.image || data.media_url || data.mediaUrl] : []),
             caption: data.caption || '',
             location: data.location || '',
             time: data.time || 'Midnight',
@@ -313,7 +313,7 @@ export default function App() {
             tags: data.tags || [],
             likedBy: data.likedBy || [],
             savedBy: data.savedBy || [],
-            createdAt: data.createdAt || '',
+            createdAt: data.createdAt || data.created_at || '',
           });
         });
 
