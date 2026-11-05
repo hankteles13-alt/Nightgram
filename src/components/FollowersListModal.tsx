@@ -167,7 +167,7 @@ export default function FollowersListModal({
 
         // Only show users explicitly recorded in this profile's real relationship lists.
         const usersByUsername = new Map(
-          dbUsers.map((user) => [user.username.toLowerCase(), user])
+          dbUsers.map((user) => [user.username.toLowerCase(), user] as const)
         );
         const toFollowItem = (username: string): FollowItem =>
           usersByUsername.get(username.toLowerCase()) || {
