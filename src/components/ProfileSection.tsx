@@ -4,28 +4,18 @@ import { Post, UserProfile } from '../types';
 import AnimatedLikeButton from './AnimatedLikeButton';
 import AnimatedCommentButton from './AnimatedCommentButton';
 import {
-  Edit2,
   Grid,
   Bookmark,
-  Check,
   Heart,
   MessageCircle,
   X,
-  ShieldAlert,
   LogOut,
   Camera,
   Upload,
-  Sparkles,
-  Share2,
   UserPlus,
   Film,
-  Repeat,
-  Play,
   Plus,
-  Music,
-  AtSign,
   Activity,
-  Volume2,
   Maximize2
 } from 'lucide-react';
 import NocturnalRhythmChart from './NocturnalRhythmChart';
@@ -42,6 +32,7 @@ interface ProfileSectionProps {
   onOpenUserProfile?: (user: any) => void;
   onToggleFollowUser?: (targetUser: any, isFollowing: boolean) => void;
   onRemoveFollower?: (username: string) => void;
+  onDiscoverPeople?: () => void;
   followingList?: string[];
   followersList?: string[];
 }
@@ -51,19 +42,6 @@ interface StoryHighlight {
   title: string;
   coverImage: string;
 }
-
-const DEFAULT_COMMUNITY_FOLLOWER_USERNAMES = [
-  'synth_fox',
-  'nocturnal_rider',
-  'tokyo_drift',
-  'beat_maker',
-  'luna_vibes',
-  'coffee_at_3am',
-  'cyber_wanderer',
-];
-const DEFAULT_COMMUNITY_FOLLOWING_USERNAMES = ['nocturnal_rider', 'tokyo_drift', 'coffee_at_3am'];
-
-const DEFAULT_HIGHLIGHTS: StoryHighlight[] = [];
 
 export default function ProfileSection({
   userProfile,
@@ -75,10 +53,11 @@ export default function ProfileSection({
   onOpenUserProfile,
   onToggleFollowUser,
   onRemoveFollower,
+  onDiscoverPeople,
   followingList,
   followersList,
 }: ProfileSectionProps) {
-  const [activeTab, setActiveTab] = useState<'posts' | 'reels' | 'reposts' | 'saved'>('posts');
+  const [activeTab, setActiveTab] = useState<'posts' | 'reels' | 'saved'>('posts');
   const [isEditing, setIsEditing] = useState(false);
   const [showRhythmChart, setShowRhythmChart] = useState(false);
   const [showFollowersModal, setShowFollowersModal] = useState(false);
@@ -98,8 +77,8 @@ export default function ProfileSection({
   }, [showFullscreenAvatar]);
 
   // Exact counts strictly representing the users they stand for
-  const effectiveFollowers = followersList ?? userProfile.followersList ?? DEFAULT_COMMUNITY_FOLLOWER_USERNAMES;
-  const effectiveFollowing = followingList ?? userProfile.followingList ?? DEFAULT_COMMUNITY_FOLLOWING_USERNAMES;
+  const effectiveFollowers = followersList ?? userProfile.followersList ?? [];
+  const effectiveFollowing = followingList ?? userProfile.followingList ?? [];
 
   const [liveFollowersCount, setLiveFollowersCount] = useState<number>(effectiveFollowers.length);
   const [liveFollowingCount, setLiveFollowingCount] = useState<number>(effectiveFollowing.length);
@@ -118,8 +97,6 @@ export default function ProfileSection({
   const [editBio, setEditBio] = useState(userProfile.bio || '');
   const [editAvatar, setEditAvatar] = useState(userProfile.avatar || '');
   const [selectedPost, setSelectedPost] = useState<Post | null>(null);
-  const [isPlayingMusic, setIsPlayingMusic] = useState(false);
-  const [highlights, setHighlights] = useState<StoryHighlight[]>(DEFAULT_HIGHLIGHTS);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -132,7 +109,7 @@ export default function ProfileSection({
   }, [userProfile.displayName, userProfile.username, userProfile.bio, userProfile.avatar]);
 
   const myPosts = posts.filter((p) => p.userId === userProfile.uid || p.username === userProfile.username);
-  const savedPosts = posts.filter((p) => p.savedBy?.includes(userProfile.uid) || p.isSaved);
+  const savedPosts = posts.filter((p) => !!userProfile.uid && p.savedBy?.includes(userProfile.uid));
 
   // Computed tab content lists
   const getDisplayPosts = () => {
@@ -140,9 +117,7 @@ export default function ProfileSection({
       case 'posts':
         return myPosts;
       case 'reels':
-        return posts.filter((p) => p.image);
-      case 'reposts':
-        return posts.slice(0, 3);
+        return myPosts.filter((p) => p.mediaType === 'video' || !!p.videoUrl);
       case 'saved':
         return savedPosts;
       default:
@@ -241,24 +216,23 @@ export default function ProfileSection({
     setIsEditing(false);
   };
 
-  const handleShareProfile = () => {
-    if (navigator.clipboard) {
-      navigator.clipboard.writeText(window.location.href);
-      alert('Profile link copied to clipboard!');
-    } else {
-      alert(`Sharing profile: @${userProfile.username}`);
-    }
-  };
-
-  const handleAddHighlight = () => {
-    const title = prompt('Enter highlight title:', 'Night Vibe');
-    if (!title) return;
-    const newHL: StoryHighlight = {
-      id: Date.now().toString(),
-      title,
-      coverImage: 'https://images.unsplash.com/photo-1519501025264-65ba15a82390?w=200&auto=format&fit=crop&q=80',
+  const handleShareProfile = async () => {
+    const shareData = {
+      title: `${userProfile.displayName || userProfile.username} on Nightgram`,
+      text: `Find @${userProfile.username} on Nightgram`,
+      url: window.location.href,
     };
-    setHighlights((prev) => [...prev, newHL]);
+    try {
+      if (navigator.share) await navigator.share(shareData);
+      else if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(`${shareData.text}: ${shareData.url}`);
+        alert('Profile link copied.');
+      } else {
+        window.prompt('Copy your profile link:', shareData.url);
+      }
+    } catch (error) {
+      if ((error as DOMException)?.name !== 'AbortError') console.warn('Profile sharing failed:', error);
+    }
   };
 
   return (
@@ -411,40 +385,12 @@ export default function ProfileSection({
                 </p>
               ))
             ) : (
-              <>
-                <p>DON'T TRY TO CHECK MY MISTAKES, I'M AFRAID YOU MIGHT BE ONE OF THEM.🖤</p>
-                <p>CHOOSE A GOOD HEART, NOT A GOOD FACE.🖤</p>
-              </>
+              <p className="normal-case tracking-normal text-zinc-500">No bio yet. Add one with Edit profile.</p>
             )}
           </div>
         </div>
 
-        {/* METADATA PILLS: THREAD & MUSIC BADGE */}
-        <div className="flex items-center space-x-2 flex-wrap gap-y-2 pt-0.5">
-          {/* Threads / Handle Badge */}
-          <div className="inline-flex items-center space-x-1.5 px-3 py-1 rounded-full bg-[#12121e] border border-zinc-800 text-xs font-semibold text-zinc-300">
-            <AtSign className="w-3.5 h-3.5 text-cyan-400" />
-            <span>01.30.am_</span>
-          </div>
 
-          {/* Music Track Badge with Play toggle */}
-          <button
-            type="button"
-            onClick={() => setIsPlayingMusic(!isPlayingMusic)}
-            className={`inline-flex items-center space-x-1.5 px-3 py-1 rounded-full border text-xs font-semibold transition cursor-pointer ${
-              isPlayingMusic
-                ? 'bg-purple-950/60 border-purple-500/60 text-purple-200 shadow-[0_0_10px_rgba(168,85,247,0.3)]'
-                : 'bg-[#12121e] border-zinc-800 text-zinc-300 hover:border-zinc-700'
-            }`}
-          >
-            {isPlayingMusic ? (
-              <Volume2 className="w-3.5 h-3.5 text-purple-400 animate-pulse" />
-            ) : (
-              <Play className="w-3.5 h-3.5 text-cyan-400 fill-cyan-400" />
-            )}
-            <span>Infinity • Jaymes Young</span>
-          </button>
-        </div>
       </div>
 
       {/* ACTION BUTTONS ROW: EDIT PROFILE | SHARE PROFILE | +PERSON */}
@@ -467,7 +413,7 @@ export default function ProfileSection({
 
         <button
           type="button"
-          onClick={() => alert('Discovering Nightgram dreamers...')}
+          onClick={onDiscoverPeople}
           className="col-span-2 py-2 rounded-xl bg-[#141420] hover:bg-[#1a1a2a] border border-zinc-800/90 text-zinc-200 hover:text-white text-xs font-bold transition cursor-pointer flex items-center justify-center"
           title="Discover people"
         >
@@ -582,44 +528,6 @@ export default function ProfileSection({
         )}
       </AnimatePresence>
 
-      {/* STORY HIGHLIGHTS ROW WITH CIRCULAR ITEMS & SMALL HEART BADGES BELOW */}
-      <div className="pt-2 px-1" id="profile-story-highlights-row">
-        <div className="flex items-center space-x-4 overflow-x-auto pb-2 scrollbar-none">
-          {/* Add Highlight Button */}
-          <button
-            type="button"
-            onClick={handleAddHighlight}
-            className="flex flex-col items-center flex-shrink-0 space-y-1.5 group cursor-pointer"
-          >
-            <div className="w-16 h-16 rounded-full border-2 border-dashed border-zinc-700 group-hover:border-cyan-400 flex items-center justify-center bg-[#0e0e16] transition">
-              <Plus className="w-5 h-5 text-zinc-400 group-hover:text-cyan-400" />
-            </div>
-            <span className="text-[10px] text-zinc-400 font-medium">New</span>
-          </button>
-
-          {/* Highlights List */}
-          {highlights.map((hl, hlIndex) => (
-            <div key={`profile-highlight-${hl.id || 'hl'}-${hlIndex}`} className="flex flex-col items-center flex-shrink-0 space-y-1 group cursor-pointer">
-              <div className="relative">
-                <div className="w-16 h-16 rounded-full p-[2px] bg-gradient-to-tr from-zinc-800 via-zinc-700 to-zinc-900 group-hover:from-cyan-400 group-hover:to-purple-500 transition duration-300">
-                  <img
-                    src={hl.coverImage || 'https://images.unsplash.com/photo-1514565131-fce0801e5785?w=800'}
-                    alt={hl.title}
-                    className="w-full h-full object-cover rounded-full border-2 border-[#0a0a0f]"
-                    referrerPolicy="no-referrer"
-                  />
-                </div>
-              </div>
-
-              {/* Heart Badge Underneath Circle as shown in format */}
-              <div className="flex items-center justify-center pt-0.5">
-                <Heart className="w-3 h-3 text-zinc-500 fill-zinc-500 group-hover:text-purple-400 group-hover:fill-purple-400 transition" />
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-
       {/* COLLAPSIBLE NOCTURNAL RHYTHM CHART ANALYTICS */}
       <AnimatePresence>
         {showRhythmChart && (
@@ -636,7 +544,7 @@ export default function ProfileSection({
 
       {/* TAB NAVIGATION BAR (4 ICON TABS WITH UNDERLINE INDICATOR) */}
       <div className="border-t border-b border-zinc-900/80 pt-1" id="profile-tabs-navigation">
-        <div className="grid grid-cols-4 w-full">
+        <div className="grid grid-cols-3 w-full">
           {/* Tab 1: Grid (Posts) */}
           <button
             type="button"
@@ -673,32 +581,14 @@ export default function ProfileSection({
             )}
           </button>
 
-          {/* Tab 3: Reposts / Loops */}
-          <button
-            type="button"
-            onClick={() => setActiveTab('reposts')}
-            className={`py-3 flex flex-col items-center justify-center relative cursor-pointer transition ${
-              activeTab === 'reposts' ? 'text-white' : 'text-zinc-500 hover:text-zinc-300'
-            }`}
-            title="Reposts"
-          >
-            <Repeat className="w-5 h-5" />
-            {activeTab === 'reposts' && (
-              <motion.div
-                layoutId="activeTabUnderline"
-                className="absolute bottom-0 left-0 right-0 h-[2px] bg-cyan-400 shadow-[0_0_8px_rgba(6,182,212,0.8)]"
-              />
-            )}
-          </button>
-
-          {/* Tab 4: Saved / Tagged */}
+          {/* Tab 3: Saved posts */}
           <button
             type="button"
             onClick={() => setActiveTab('saved')}
             className={`py-3 flex flex-col items-center justify-center relative cursor-pointer transition ${
               activeTab === 'saved' ? 'text-white' : 'text-zinc-500 hover:text-zinc-300'
             }`}
-            title="Saved Vibes"
+            title="Saved posts"
           >
             <Bookmark className="w-5 h-5" />
             {activeTab === 'saved' && (
@@ -742,7 +632,7 @@ export default function ProfileSection({
           ))
         ) : (
           <div className="col-span-3 py-12 text-center text-zinc-500 text-xs font-sans">
-            No media items to display in this tab yet.
+            {activeTab === 'posts' ? 'You have not posted anything yet.' : activeTab === 'reels' ? 'Your video posts will appear here.' : 'You have not saved any posts yet.'}
           </div>
         )}
       </div>
