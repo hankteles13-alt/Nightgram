@@ -223,7 +223,7 @@ export default function FollowersListModal({
     return () => {
       isMounted = false;
     };
-  }, [isOpen, userProfile.username, externalFollowingList, onCountsChange]);
+  }, [isOpen, userProfile.username, userProfile.followersList, userProfile.followingList, externalFollowingList, onCountsChange]);
 
   // Handle follow / unfollow toggle
   const handleToggleFollow = (targetUser: FollowItem) => {
