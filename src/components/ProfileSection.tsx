@@ -37,12 +37,6 @@ interface ProfileSectionProps {
   followersList?: string[];
 }
 
-interface StoryHighlight {
-  id: string;
-  title: string;
-  coverImage: string;
-}
-
 export default function ProfileSection({
   userProfile,
   onUpdateProfile,
@@ -251,7 +245,6 @@ export default function ProfileSection({
       <div className="flex items-center justify-between pt-1 px-1" id="profile-top-title-bar">
         <h1 className="text-lg font-bold text-white tracking-wide font-sans flex items-center space-x-1.5">
           <span>{userProfile.displayName || userProfile.username || 'λλRΥλ'}</span>
-          <span className="text-zinc-400">🖤</span>
         </h1>
         <div className="flex items-center space-x-2">
           <button
@@ -279,11 +272,6 @@ export default function ProfileSection({
       <div className="flex items-center justify-between px-1" id="profile-avatar-stats-row">
         {/* Left: Avatar with Floating Top Heart Badge and Bottom '+' Button */}
         <div className="relative group cursor-pointer" id="profile-avatar-wrapper">
-          {/* Top Left Heart Badge */}
-          <div className="absolute -top-1.5 -left-1.5 z-10 w-6 h-6 rounded-full bg-zinc-900/90 border border-zinc-700/80 flex items-center justify-center text-zinc-300 shadow">
-            <Heart className="w-3.5 h-3.5 fill-zinc-400 text-zinc-400" />
-          </div>
-
           {/* Main Circular Image */}
           <div
             id="profile-avatar-click-zone"
@@ -375,8 +363,7 @@ export default function ProfileSection({
         <div>
           <h2 className="text-sm font-bold text-white tracking-wide flex items-center space-x-1">
             <span>{userProfile.displayName || 'Aarya'}</span>
-            <span className="text-zinc-400">🖤</span>
-          </h2>
+            </h2>
           <div className="text-xs text-zinc-200 font-medium leading-relaxed uppercase tracking-wide mt-1 space-y-0.5">
             {userProfile.bio ? (
               userProfile.bio.split('\n').map((line, idx) => (
