@@ -194,17 +194,6 @@ export default function App() {
             setCurrentUser({ uid: firebaseUser.uid, ...userDoc.data() });
           } else {
             // Create user profile document if it doesn't exist
-            const defaultCommunityFollowers = [
-              'synth_fox',
-              'nocturnal_rider',
-              'tokyo_drift',
-              'beat_maker',
-              'luna_vibes',
-              'coffee_at_3am',
-              'cyber_wanderer',
-            ];
-            const defaultCommunityFollowing = ['nocturnal_rider', 'tokyo_drift', 'coffee_at_3am'];
-
             const fallbackProfile = {
               uid: firebaseUser.uid,
               email: firebaseUser.email || '',
@@ -214,10 +203,10 @@ export default function App() {
               displayName: firebaseUser.displayName || 'A Midnight Dreamer',
               avatar: firebaseUser.photoURL || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
               bio: 'Chasing midnight dreams.',
-              followers: defaultCommunityFollowers.length,
-              following: defaultCommunityFollowing.length,
-              followersList: defaultCommunityFollowers,
-              followingList: defaultCommunityFollowing,
+              followers: 0,
+              following: 0,
+              followersList: [],
+              followingList: [],
               stars: 0,
               createdAt: new Date().toISOString(),
             };
@@ -226,17 +215,6 @@ export default function App() {
           }
         } catch (err) {
           console.warn('Auth user profile fetch fallback:', err);
-          const defaultCommunityFollowers = [
-            'synth_fox',
-            'nocturnal_rider',
-            'tokyo_drift',
-            'beat_maker',
-            'luna_vibes',
-            'coffee_at_3am',
-            'cyber_wanderer',
-          ];
-          const defaultCommunityFollowing = ['nocturnal_rider', 'tokyo_drift', 'coffee_at_3am'];
-
           setCurrentUser({
             uid: firebaseUser.uid,
             email: firebaseUser.email || '',
@@ -246,10 +224,10 @@ export default function App() {
             displayName: firebaseUser.displayName || 'A Midnight Dreamer',
             avatar: firebaseUser.photoURL || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
             bio: 'Chasing midnight dreams.',
-            followers: defaultCommunityFollowers.length,
-            following: defaultCommunityFollowing.length,
-            followersList: defaultCommunityFollowers,
-            followingList: defaultCommunityFollowing,
+            followers: 0,
+            following: 0,
+            followersList: [],
+            followingList: [],
             stars: 0,
           });
         }
@@ -1215,16 +1193,7 @@ export default function App() {
     if (!currentUser) return;
 
     const usernameLower = targetUsername.toLowerCase();
-    const currentFollowersList =
-      currentUser.followersList || [
-        'synth_fox',
-        'nocturnal_rider',
-        'tokyo_drift',
-        'beat_maker',
-        'luna_vibes',
-        'coffee_at_3am',
-        'cyber_wanderer',
-      ];
+    const currentFollowersList = Array.isArray(currentUser.followersList) ? currentUser.followersList : [];
     const nextFollowersList = currentFollowersList.filter((u) => u !== usernameLower);
     const nextFollowersCount = nextFollowersList.length;
 
@@ -1872,6 +1841,7 @@ export default function App() {
                     followingList={currentUser?.followingList}
                     followersList={currentUser?.followersList}
                     onRemoveFollower={handleRemoveFollower}
+                    onDiscoverPeople={() => setShowSearchModal(true)}
                   />
                 </div>
               )}
