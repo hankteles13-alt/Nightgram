@@ -165,52 +165,54 @@ export default function FollowersListModal({
 
         if (!isMounted) return;
 
-        // Merge community default followers with any registered database users
-        const combinedFollowers = [...dbUsers];
-        DEFAULT_COMMUNITY_FOLLOWERS.forEach((defaultUser) => {
-          if (!combinedFollowers.some((u) => u.username.toLowerCase() === defaultUser.username.toLowerCase())) {
-            const isFollowed = externalFollowingList?.includes(defaultUser.username.toLowerCase()) ?? defaultUser.isFollowing;
-            combinedFollowers.push({
-              ...defaultUser,
-              isFollowing: isFollowed,
-            });
-          }
-        });
+        // Only show users explicitly recorded in this profile's real relationship lists.
+        const usersByUsername = new Map(
+          dbUsers.map((user) => [user.username.toLowerCase(), user])
+        );
+        const toFollowItem = (username: string): FollowItem =>
+          usersByUsername.get(username.toLowerCase()) || {
+            username,
+            displayName: username,
+            avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150',
+            isFollowing: externalFollowingList?.some((name) => name.toLowerCase() === username.toLowerCase()) ?? false,
+          };
 
-        // Following list: people the profile user is following
-        const currentFollowing = combinedFollowers.filter((u) => {
-          if (externalFollowingList && externalFollowingList.length > 0) {
-            return externalFollowingList.includes(u.username.toLowerCase());
-          }
-          return u.isFollowing;
-        });
+        const actualFollowers = Array.isArray(userProfile.followersList)
+          ? userProfile.followersList.map(toFollowItem)
+          : [];
+        const actualFollowing = Array.isArray(userProfile.followingList)
+          ? userProfile.followingList.map(toFollowItem)
+          : [];
 
-        setFollowers(combinedFollowers);
-        const resolvedFollowing = currentFollowing.length > 0 ? currentFollowing : combinedFollowers.slice(0, 3);
-        setFollowing(resolvedFollowing);
-        if (onCountsChange) {
-          onCountsChange({
-            followers: combinedFollowers.length,
-            following: resolvedFollowing.length,
-          });
-        }
+        if (!isMounted) return;
+        setFollowers(actualFollowers);
+        setFollowing(actualFollowing);
+        onCountsChange?.({
+          followers: actualFollowers.length,
+          following: actualFollowing.length,
+        });
       } catch (err) {
         console.warn('Notice loading followers from Firestore, using community roster:', err);
         if (!isMounted) return;
 
-        const updated = DEFAULT_COMMUNITY_FOLLOWERS.map((u) => ({
-          ...u,
-          isFollowing: externalFollowingList?.includes(u.username.toLowerCase()) ?? u.isFollowing,
+        const actualFollowers = (userProfile.followersList || []).map((username) => ({
+          username,
+          displayName: username,
+          avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150',
+          isFollowing: externalFollowingList?.some((name) => name.toLowerCase() === username.toLowerCase()) ?? false,
         }));
-        setFollowers(updated);
-        const activeFollowing = updated.filter((u) => u.isFollowing);
-        setFollowing(activeFollowing);
-        if (onCountsChange) {
-          onCountsChange({
-            followers: updated.length,
-            following: activeFollowing.length,
-          });
-        }
+        const actualFollowing = (userProfile.followingList || []).map((username) => ({
+          username,
+          displayName: username,
+          avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150',
+          isFollowing: true,
+        }));
+        setFollowers(actualFollowers);
+        setFollowing(actualFollowing);
+        onCountsChange?.({
+          followers: actualFollowers.length,
+          following: actualFollowing.length,
+        });
       } finally {
         if (isMounted) setLoading(false);
       }
