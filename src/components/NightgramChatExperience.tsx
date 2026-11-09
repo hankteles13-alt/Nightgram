@@ -244,9 +244,12 @@ export default function NightgramChatExperience({
         const combined = image ? `${body}${body ? ' ' : ''}[Image attached]` : body;
         onSendMessage?.('me', combined);
         setAiTyping(true);
-        const history: ChatTurn[] = messages.slice(-12).map(m => ({ role: m.sender === 'me' ? 'user' : 'model', text: m.text }));
-        const answer = await fetchAiCompanionReply(combined || 'I shared an image.', history);
-        onSendMessage?.('luna', answer);
+        const history: ChatTurn[] = messages.slice(-12).map(m => ({
+          role: m.sender === 'me' ? 'user' : 'assistant',
+          text: m.text
+        }));
+        const answer = await fetchAiCompanionReply(AI_ID, combined || 'I shared an image.', history);
+        onSendMessage?.('luna', answer.reply);
         setAiTyping(false);
       } else {
         const encrypted = await encryptMessageText(body, activeId);
