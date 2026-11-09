@@ -168,3 +168,20 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
     transition-duration: .01ms !important;
   }
 }
+
+
+/* Chat layout: keep nested panes scrollable on touch devices and respect mobile safe areas. */
+.ng-chat-shell {
+  min-width: 0;
+  overscroll-behavior: contain;
+}
+@media (max-width: 767px) {
+  .ng-chat-shell {
+    min-height: 0;
+    overflow: hidden;
+  }
+  .ng-chat-shell textarea,
+  .ng-chat-shell input {
+    font-size: 16px;
+  }
+}
