@@ -363,7 +363,7 @@ export default function NightgramChatExperience({
             <textarea ref={inputRef} rows={1} value={text} onChange={e => setText(e.target.value)} onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); } }} placeholder="Write a message…" className="flex-1 min-w-0 resize-none max-h-32 min-h-[42px] py-3 bg-transparent outline-none text-sm placeholder:text-zinc-600" />
             <button type="submit" disabled={sending || (!text.trim() && !attachPreview)} className="h-11 w-11 flex-shrink-0 rounded-2xl bg-cyan-300 text-slate-950 flex items-center justify-center hover:bg-cyan-200 disabled:opacity-30 disabled:cursor-not-allowed transition shadow-lg shadow-cyan-950/30" title="Send message">{sending ? <span className="w-4 h-4 rounded-full border-2 border-slate-950/30 border-t-slate-950 animate-spin"/> : <Send size={18}/>}</button>
           </div>
-          <div className="flex items-center justify-between px-2 mt-2 gap-2"><span className="hidden xs:inline text-[10px] text-zinc-600">Enter to send · Shift + Enter for a new line</span><span className="text-[10px] text-zinc-700 flex items-center gap-1"><ShieldCheck size={11}/> Private chat</span></div>
+          <div className="flex items-center justify-between px-2 mt-2 gap-2"><span className="hidden sm:inline text-[10px] text-zinc-600">Enter to send · Shift + Enter for a new line</span><span className="text-[10px] text-zinc-700 flex items-center gap-1"><ShieldCheck size={11}/> Private chat</span></div>
         </form>
       </section>
 
